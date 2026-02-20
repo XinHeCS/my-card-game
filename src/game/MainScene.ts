@@ -18,6 +18,7 @@ export class MainScene implements GameScene {
   private gameLayer: Container;
   private uiLayer: Container;
   private handContainer: Container;
+  private techniqueContainer: Container;
 
   // Sprites
   private background!: Sprite;
@@ -43,10 +44,12 @@ export class MainScene implements GameScene {
     this.gameLayer = new Container();
     this.uiLayer = new Container();
     this.handContainer = new Container();
+    this.techniqueContainer = new Container();
 
     this.container.addChild(this.gameLayer);
     this.container.addChild(this.uiLayer);
     this.uiLayer.addChild(this.handContainer);
+    this.uiLayer.addChild(this.techniqueContainer);
 
     this.engine.app.stage.addChild(this.container);
 
@@ -158,8 +161,65 @@ export class MainScene implements GameScene {
     this.handContainer.y = height - 200;
     this.handContainer.x = width / 2;
 
+    // Technique Container
+    this.techniqueContainer.x = 20;
+    this.techniqueContainer.y = 150;
+
     // Buttons
     this.createButtons(width, height);
+  }
+
+  renderTechniques() {
+    this.techniqueContainer.removeChildren();
+    const techniques = this.combatSystem.equippedTechniques;
+    const size = 60;
+    const spacing = 70;
+
+    techniques.forEach((tech, index) => {
+      const container = new Container();
+
+      const bg = new Graphics();
+      bg.roundRect(0, 0, size, size, 8);
+      bg.fill(0xFFD700); // Gold for techniques
+      bg.stroke({ width: 2, color: 0x000000 });
+      container.addChild(bg);
+
+      // Simple Text Icon (First char of name)
+      const iconText = new Text({ text: tech.name.substring(0, 1), style: { fontFamily: 'Arial', fontSize: 24, fill: 'black', fontWeight: 'bold' } });
+      iconText.anchor.set(0.5);
+      iconText.x = size / 2;
+      iconText.y = size / 2;
+      container.addChild(iconText);
+
+      // Tooltip (hidden by default)
+      const tooltip = new Container();
+      const tipBg = new Graphics();
+      tipBg.roundRect(0, 0, 200, 80, 5);
+      tipBg.fill({ color: 0x000000, alpha: 0.8 });
+      tooltip.addChild(tipBg);
+
+      const tipText = new Text({
+        text: `${tech.name}\n${tech.description}`,
+        style: { fontFamily: 'Arial', fontSize: 12, fill: 'white', wordWrap: true, wordWrapWidth: 190 }
+      });
+      tipText.x = 5;
+      tipText.y = 5;
+      tooltip.addChild(tipText);
+
+      tooltip.x = size + 10;
+      tooltip.y = 0;
+      tooltip.visible = false;
+      container.addChild(tooltip);
+
+      // Interaction
+      container.eventMode = 'static';
+      container.cursor = 'help';
+      container.on('pointerenter', () => { tooltip.visible = true; });
+      container.on('pointerleave', () => { tooltip.visible = false; });
+
+      container.y = index * spacing;
+      this.techniqueContainer.addChild(container);
+    });
   }
 
   createButtons(width: number, height: number) {
@@ -192,6 +252,7 @@ export class MainScene implements GameScene {
     });
     this.combatSystem.startTurn();
     this.renderHand();
+    this.renderTechniques();
     this.updateUI();
   }
 
@@ -329,6 +390,8 @@ export class MainScene implements GameScene {
         this.turnText.x = width / 2;
         this.handContainer.x = width / 2;
         this.handContainer.y = height - 200;
+        this.techniqueContainer.x = 20;
+        this.techniqueContainer.y = 150;
         this.playButton.x = width - 170;
         this.playButton.y = height - 70;
 
