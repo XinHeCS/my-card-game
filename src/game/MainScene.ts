@@ -193,17 +193,21 @@ export class MainScene implements GameScene {
 
       // Tooltip (hidden by default)
       const tooltip = new Container();
-      const tipBg = new Graphics();
-      tipBg.roundRect(0, 0, 200, 80, 5);
-      tipBg.fill({ color: 0x000000, alpha: 0.8 });
-      tooltip.addChild(tipBg);
 
       const tipText = new Text({
         text: `${tech.name}\n${tech.description}`,
-        style: { fontFamily: 'Arial', fontSize: 12, fill: 'white', wordWrap: true, wordWrapWidth: 190 }
+        style: { fontFamily: 'Arial', fontSize: 14, fill: 'white', wordWrap: true, wordWrapWidth: 280 }
       });
-      tipText.x = 5;
-      tipText.y = 5;
+      tipText.x = 10;
+      tipText.y = 10;
+
+      const tipBg = new Graphics();
+      const bgHeight = Math.max(80, tipText.height + 20);
+
+      tipBg.roundRect(0, 0, 300, bgHeight, 5);
+      tipBg.fill({ color: 0x000000, alpha: 0.8 });
+
+      tooltip.addChild(tipBg);
       tooltip.addChild(tipText);
 
       tooltip.x = size + 10;
