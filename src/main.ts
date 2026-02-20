@@ -5,7 +5,7 @@
 import * as PIXI from 'pixi.js';
 import { Application } from 'pixi.js';
 import { Engine } from './engine/Engine';
-import { MainScene } from './game/MainScene';
+import { TitleScene } from './game/TitleScene';
 import { PlatformBridge } from './platform/Bridge';
 
 // 暴露 PIXI 到全局（供 VAG DevTools 使用）
@@ -44,8 +44,8 @@ async function main() {
   // Create engine
   const engine = new Engine(app);
 
-  // Create main scene
-  const scene = new MainScene(engine);
+  // Create title scene
+  const scene = new TitleScene(engine);
   engine.setScene(scene);
 
   // Handle resize

@@ -2,8 +2,7 @@ import { Container, Sprite, Text, TextStyle, Graphics, Texture, Assets } from 'p
 import { Engine, GameScene } from '../engine/Engine';
 import { World } from '../engine/World';
 import { CombatSystem } from './CombatSystem';
-import { BASE_MOVES } from '../data/moves';
-import { TECHNIQUES } from '../data/techniques';
+import { GameData, EnemyConfig } from './GameData';
 import { getAudioSystem, AudioSystem } from '../audio/AudioSystem';
 
 export class MainScene implements GameScene {
@@ -12,6 +11,7 @@ export class MainScene implements GameScene {
   private audio: AudioSystem;
 
   private combatSystem: CombatSystem;
+  private enemyConfig?: EnemyConfig;
 
   // Containers
   private container: Container;
@@ -35,8 +35,9 @@ export class MainScene implements GameScene {
   private selectedCardIndices: Set<number> = new Set();
   private playButton!: Container;
 
-  constructor(engine: Engine) {
+  constructor(engine: Engine, enemyConfig?: EnemyConfig) {
     this.engine = engine;
+    this.enemyConfig = enemyConfig;
     this.world = new World();
     this.audio = getAudioSystem();
 
@@ -53,7 +54,13 @@ export class MainScene implements GameScene {
 
     this.engine.app.stage.addChild(this.container);
 
-    this.combatSystem = new CombatSystem(BASE_MOVES, TECHNIQUES);
+    const gameData = GameData.getInstance();
+    this.combatSystem = new CombatSystem(gameData.currentDeck, gameData.currentTechniques);
+
+    // Apply Enemy Config if provided
+    if (this.enemyConfig) {
+        this.combatSystem.enemyStats = { ...this.enemyConfig.stats };
+    }
   }
 
   async init() {
