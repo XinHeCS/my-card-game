@@ -1,0 +1,1 @@
+{"root":["./src/main.ts","./src/audio/AudioSystem.ts","./src/data/moves.ts","./src/data/techniques.ts","./src/engine/Engine.ts","./src/engine/Input.ts","./src/engine/World.ts","./src/game/CombatSystem.ts","./src/game/MainScene.ts","./src/platform/Bridge.ts","./src/types/game.ts"],"version":"5.9.3"}
