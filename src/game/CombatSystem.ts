@@ -73,10 +73,14 @@ export class CombatSystem {
   playTurn(selectedCardIndices: number[]) {
     if (this.currentPhase !== 'Action') return;
 
-    // Rule: Can play 1 to 5 cards (previously exactly 5)
-    if (selectedCardIndices.length === 0 || selectedCardIndices.length > 5) {
-      this.log.push('必须选择 1 到 5 张牌！');
+    // Rule: Can play 0 to 5 cards
+    if (selectedCardIndices.length > 5) {
+      this.log.push('最多只能选择 5 张牌！');
       return;
+    }
+
+    if (selectedCardIndices.length === 0) {
+      this.log.push('未出牌，直接结束回合。');
     }
 
     const playedCards = selectedCardIndices.map(i => this.hand[i]);

@@ -271,7 +271,7 @@ export class MainScene implements GameScene {
     bg.fill(0x00FF00);
     this.playButton.addChild(bg);
 
-    const text = new Text({ text: '出招 (0/5)', style: { fontFamily: 'Arial', fontSize: 24, fill: 'black' } });
+    const text = new Text({ text: '结束回合', style: { fontFamily: 'Arial', fontSize: 24, fill: 'black' } });
     text.anchor.set(0.5);
     text.x = 75;
     text.y = 25;
@@ -377,15 +377,15 @@ export class MainScene implements GameScene {
   updatePlayButton() {
     const text = (this.playButton.children[1] as Text);
     const count = this.selectedCardIndices.size;
-    text.text = `出招 (${count}/5)`;
-    // Allow play if > 0
-    this.playButton.alpha = count > 0 ? 1 : 0.5;
+    text.text = count === 0 ? '结束回合' : `出招 (${count}/5)`;
+    // Always allow play (either 0 cards to skip, or 1-5 to attack)
+    this.playButton.alpha = 1;
   }
 
   onPlayCards() {
     this.audio.ensureResumed();
-    // Allow 1-5 cards
-    if (this.selectedCardIndices.size === 0 || this.selectedCardIndices.size > 5) return;
+    // Allow 0-5 cards
+    if (this.selectedCardIndices.size > 5) return;
 
     this.audio.play('move');
 
