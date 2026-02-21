@@ -1,4 +1,4 @@
-import { Container, Text, Graphics, Sprite, Assets, Rectangle } from 'pixi.js';
+import { Container, Text, Graphics, Sprite, Assets } from 'pixi.js';
 import { Engine, GameScene } from '../engine/Engine';
 import { World } from '../engine/World';
 import { GameData } from './GameData';
@@ -28,12 +28,19 @@ export class EditorScene implements GameScene {
   private leftContentHeight: number = 0;
   private rightContentHeight: number = 0;
 
+  // Info Panel
+  private infoContainer: Container;
+  private infoTitle: Text;
+  private infoDesc: Text;
+
   constructor(engine: Engine) {
     this.engine = engine;
     this.world = new World();
     this.container = new Container();
     this.leftListContainer = new Container();
     this.rightListContainer = new Container();
+    this.infoContainer = new Container();
+
     this.engine.app.stage.addChild(this.container);
 
     // Deep copy current state
@@ -43,6 +50,10 @@ export class EditorScene implements GameScene {
 
     this.scrollListener = this.handleScroll.bind(this);
     window.addEventListener('wheel', this.scrollListener);
+
+    // Init Info Panel elements
+    this.infoTitle = new Text({ text: '', style: { fill: '#ffff00', fontSize: 24, fontWeight: 'bold' } });
+    this.infoDesc = new Text({ text: '', style: { fill: 'white', fontSize: 18, wordWrap: true, wordWrapWidth: 280 } });
   }
 
   handleScroll(e: WheelEvent) {
@@ -90,7 +101,7 @@ export class EditorScene implements GameScene {
 
     const w = this.engine.app.renderer.width;
     const h = this.engine.app.renderer.height;
-    this.listHeight = h - 160; // Top header space
+    this.listHeight = h - 160;
 
     // Header
     const title = new Text({ text: '牌组编辑', style: { fill: 'white', fontSize: 36 } });
@@ -120,11 +131,34 @@ export class EditorScene implements GameScene {
     saveBtn.on('pointerdown', () => this.saveAndExit());
     this.container.addChild(saveBtn);
 
+    // Info Panel
+    this.setupInfoPanel(w);
+
     // Setup Lists Containers and Masks
     this.setupListContainers(w, h);
 
     // Lists
     this.renderLists();
+  }
+
+  setupInfoPanel(w: number) {
+      this.infoContainer.removeChildren();
+      const bg = new Graphics();
+      bg.roundRect(0, 0, 300, 120, 10);
+      bg.fill({ color: 0x000000, alpha: 0.8 });
+      bg.stroke({ width: 2, color: 0xffff00 });
+      this.infoContainer.addChild(bg);
+
+      this.infoTitle.position.set(10, 10);
+      this.infoDesc.position.set(10, 45);
+      this.infoContainer.addChild(this.infoTitle);
+      this.infoContainer.addChild(this.infoDesc);
+
+      // Position: Top Right, below Save button
+      this.infoContainer.x = w - 320;
+      this.infoContainer.y = 80;
+      this.infoContainer.visible = false;
+      this.container.addChild(this.infoContainer);
   }
 
   setupListContainers(w: number, h: number) {
@@ -179,7 +213,7 @@ export class EditorScene implements GameScene {
     this.leftListContainer.removeChildren();
     this.rightListContainer.removeChildren();
 
-    // Headers (Static, outside scroll)
+    // Headers
     const leftLabel = new Text({
         text: this.currentTab === 'Moves' ? `当前招式 (${this.tempDeck.length}/30)` : `当前功法 (${this.tempTechs.length}/5)`,
         style: { fill: 'white', fontSize: 20 }
@@ -211,7 +245,6 @@ export class EditorScene implements GameScene {
         y += 40;
     });
 
-    // Clamp Scroll
     this.leftContentHeight = y;
     const maxLeftScroll = Math.min(0, this.listHeight - this.leftContentHeight);
     if (this.leftScrollY < maxLeftScroll) this.leftScrollY = maxLeftScroll;
@@ -229,7 +262,6 @@ export class EditorScene implements GameScene {
         y += 40;
     });
 
-    // Clamp Scroll
     this.rightContentHeight = y;
     const maxRightScroll = Math.min(0, this.listHeight - this.rightContentHeight);
     if (this.rightScrollY < maxRightScroll) this.rightScrollY = maxRightScroll;
@@ -245,10 +277,21 @@ export class EditorScene implements GameScene {
     bg.stroke({ width: 1, color: 'gray' });
     row.addChild(bg);
 
-    const name = new Text({ text: item.name, style: { fill: 'white', fontSize: 16 } });
+    // Icon + Name
+    const displayText = `${item.icon} ${item.name}`;
+    const name = new Text({ text: displayText, style: { fill: 'white', fontSize: 16 } });
     name.x = 10;
     name.y = 8;
     row.addChild(name);
+
+    // Count (only for pool view, show how many we have in deck)
+    if (!isRemove && this.currentTab === 'Moves') {
+        const count = this.tempDeck.filter(c => c.id === item.id).length;
+        const limitText = new Text({ text: `${count}/3`, style: { fill: count >= 3 ? 'red' : 'gray', fontSize: 14 } });
+        limitText.x = 250;
+        limitText.y = 10;
+        row.addChild(limitText);
+    }
 
     const action = new Text({
         text: isRemove ? '[-] 移除' : '[+] 添加',
@@ -260,22 +303,53 @@ export class EditorScene implements GameScene {
 
     row.eventMode = 'static';
     row.cursor = 'pointer';
+
+    // Hover for info
+    row.on('pointerenter', () => {
+        bg.fill({ color: 0x555555, alpha: 0.9 });
+        this.showInfo(item);
+    });
+    row.on('pointerleave', () => {
+        bg.fill({ color: 0x333333, alpha: 0.8 });
+        this.hideInfo();
+    });
+
     return row;
+  }
+
+  showInfo(item: any) {
+      this.infoTitle.text = `${item.icon} ${item.name}`;
+      let desc = item.description;
+      if (item.power !== undefined) {
+          desc += `\n威力: ${item.power}`;
+      }
+      if (item.def) {
+          desc += `  格挡: ${item.def}`;
+      }
+      this.infoDesc.text = desc;
+      this.infoContainer.visible = true;
+  }
+
+  hideInfo() {
+      this.infoContainer.visible = false;
   }
 
   addItem(item: any) {
     if (this.currentTab === 'Moves') {
+        const count = this.tempDeck.filter(c => c.id === item.id).length;
+        if (count >= 3) {
+            // Can add animation or sound for error
+            return;
+        }
+
         if (this.tempDeck.length < 30) {
             this.tempDeck.push(item);
-            this.createUI();
+            this.renderLists(); // Efficient re-render needed? For now full re-render lists
         }
     } else {
-        // Techniques must be unique (usually) but let's allow duplicates if not specified
-        // Actually techniques are unique in pool, but player can only select 5.
-        // Let's check if already have it?
         if (this.tempTechs.length < 5 && !this.tempTechs.find(t => t.id === item.id)) {
             this.tempTechs.push(item);
-            this.createUI();
+            this.renderLists();
         }
     }
   }
@@ -286,12 +360,12 @@ export class EditorScene implements GameScene {
     } else {
         this.tempTechs.splice(index, 1);
     }
-    this.createUI();
+    this.renderLists();
   }
 
   saveAndExit() {
-    if (this.tempDeck.length !== 30) {
-        alert('招式牌必须正好30张！'); // Simple alert for MVP, ideally in-game notification
+    if (this.tempDeck.length < 30) {
+        alert('招式牌必须凑齐30张！');
         return;
     }
     if (this.tempTechs.length !== 5) {

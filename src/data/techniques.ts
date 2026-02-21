@@ -4,6 +4,7 @@ export const TECHNIQUES: TechniqueCard[] = [
   {
     id: 'iron-shirt',
     name: '铁布衫',
+    icon: '👕',
     description: '如果你打出至少2张[格挡]牌，防御力+5。',
     type: 'Triggered',
     triggerCondition: (playedCards: MoveCard[]) => {
@@ -17,6 +18,7 @@ export const TECHNIQUES: TechniqueCard[] = [
   {
     id: 'fist-fury',
     name: '百裂拳',
+    icon: '🤜🔥',
     description: '如果所有打出的牌都是[拳]，造成双倍伤害。',
     type: 'Triggered',
     triggerCondition: (playedCards: MoveCard[]) => {
@@ -29,6 +31,7 @@ export const TECHNIQUES: TechniqueCard[] = [
   {
     id: 'vampiric-touch',
     name: '嗜血功',
+    icon: '🩸',
     description: '回复造成伤害的10%生命值。',
     type: 'Passive',
     triggerCondition: () => true, // Always triggers on hit
@@ -41,6 +44,7 @@ export const TECHNIQUES: TechniqueCard[] = [
   {
     id: 'sword-intent',
     name: '剑意',
+    icon: '⚔️✨',
     description: '每打出一张[剑]牌，本回合攻击力+2。',
     type: 'Triggered',
     triggerCondition: (playedCards: MoveCard[]) => {
@@ -54,14 +58,13 @@ export const TECHNIQUES: TechniqueCard[] = [
   {
     id: 'heavy-hand',
     name: '大力金刚掌',
+    icon: '💪',
     description: '[重击]无视敌人5点防御。',
     type: 'Triggered',
     triggerCondition: (playedCards: MoveCard[]) => {
       return playedCards.some(c => c.weight === 'Heavy');
     },
     effect: (player, enemy, damage) => {
-      // Logic would be complex to inject here without more context,
-      // but let's simulate by increasing damage slightly to offset defense
       return { player, enemy, damage: damage + 5, message: '大力金刚掌！无视防御！' };
     }
   }

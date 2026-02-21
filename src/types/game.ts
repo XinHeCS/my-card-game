@@ -4,16 +4,19 @@ export type MoveWeight = 'Light' | 'Heavy' | 'Charge' | 'Block'; // 轻击, 重�
 export interface MoveCard {
   id: string;
   name: string;
+  icon: string;
   weapon: WeaponType;
   weight: MoveWeight;
   description: string;
-  power: number; // Base damage multiplier or flat value
-  cost: number; // Maybe energy cost? Or just free.
+  power: number; // Attack bonus
+  def?: number; // Defense bonus
+  cost: number;
 }
 
 export interface TechniqueCard {
   id: string;
   name: string;
+  icon: string;
   description: string;
   triggerCondition: (playedCards: MoveCard[]) => boolean;
   effect: (player: PlayerStats, enemy: PlayerStats, damage: number) => { player: PlayerStats, enemy: PlayerStats, damage: number, message?: string };

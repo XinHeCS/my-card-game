@@ -66,10 +66,6 @@ export class MainScene implements GameScene {
   async init() {
     // Load assets
     try {
-        // In a real scenario we'd use Assets.load, but for simplicity with the template structure:
-        // We will assume textures can be created from URLs directly or preloaded.
-        // Let's just create sprites. Pixi 7/8 handles this well.
-
         const bgTexture = await Assets.load('images/background.png');
         this.background = Sprite.from(bgTexture);
 
@@ -83,7 +79,7 @@ export class MainScene implements GameScene {
         this.startGame();
     } catch (e) {
         console.error("Failed to load assets", e);
-        // Fallback for development if assets fail
+        // Fallback
         this.background = Sprite.from('white');
         this.playerSprite = Sprite.from('green');
         this.enemySprite = Sprite.from('red');
@@ -106,7 +102,7 @@ export class MainScene implements GameScene {
     this.playerSprite.anchor.set(0.5, 1);
     this.playerSprite.x = width * 0.25;
     this.playerSprite.y = height * 0.75;
-    this.playerSprite.scale.set(4); // Pixel art scaling
+    this.playerSprite.scale.set(4);
     this.gameLayer.addChild(this.playerSprite);
 
     this.enemySprite.anchor.set(0.5, 1);
@@ -191,8 +187,8 @@ export class MainScene implements GameScene {
       bg.stroke({ width: 2, color: 0x000000 });
       container.addChild(bg);
 
-      // Simple Text Icon (First char of name)
-      const iconText = new Text({ text: tech.name.substring(0, 1), style: { fontFamily: 'Arial', fontSize: 24, fill: 'black', fontWeight: 'bold' } });
+      // Icon
+      const iconText = new Text({ text: tech.icon, style: { fontFamily: 'Arial', fontSize: 32 } });
       iconText.anchor.set(0.5);
       iconText.x = size / 2;
       iconText.y = size / 2;
@@ -294,16 +290,27 @@ export class MainScene implements GameScene {
 
       cardContainer.addChild(bg);
 
-      // Text
-      const nameText = new Text({ text: card.name, style: { fontFamily: 'Arial', fontSize: 14, fill: 'black', wordWrap: true, wordWrapWidth: 90 } });
-      nameText.y = 10;
-      nameText.x = 5;
+      // Icon & Name
+      const iconText = new Text({ text: card.icon, style: { fontSize: 32 } });
+      iconText.anchor.set(0.5);
+      iconText.x = 50;
+      iconText.y = 40;
+      cardContainer.addChild(iconText);
+
+      const nameText = new Text({ text: card.name, style: { fontFamily: 'Arial', fontSize: 14, fill: 'black', wordWrap: true, wordWrapWidth: 90, align: 'center' } });
+      nameText.anchor.set(0.5, 0);
+      nameText.x = 50;
+      nameText.y = 70;
       cardContainer.addChild(nameText);
 
-      const typeLabel = this.getMoveTypeLabel(card.weapon, card.weight);
-      const infoText = new Text({ text: `${typeLabel}\n威力: ${card.power}`, style: { fontFamily: 'Arial', fontSize: 12, fill: '#333' } });
-      infoText.y = 60;
-      infoText.x = 5;
+      // Power/Def Info
+      let stats = `威:${card.power}`;
+      if (card.def) stats += `\n防:${card.def}`;
+
+      const infoText = new Text({ text: stats, style: { fontFamily: 'Arial', fontSize: 12, fill: '#333', align: 'center' } });
+      infoText.anchor.set(0.5, 0);
+      infoText.x = 50;
+      infoText.y = 100;
       cardContainer.addChild(infoText);
 
       // Positioning
@@ -317,16 +324,6 @@ export class MainScene implements GameScene {
 
       this.handContainer.addChild(cardContainer);
     });
-  }
-
-  getMoveTypeLabel(weapon: string, weight: string): string {
-    const weaponMap: Record<string, string> = {
-      'Fist': '拳', 'Blade': '刀', 'Spear': '枪', 'Sword': '剑', 'Staff': '棒'
-    };
-    const weightMap: Record<string, string> = {
-      'Light': '轻击', 'Heavy': '重击', 'Charge': '蓄力', 'Block': '格挡'
-    };
-    return `${weaponMap[weapon] || weapon}\n${weightMap[weight] || weight}`;
   }
 
   onCardClick(index: number) {
@@ -345,13 +342,16 @@ export class MainScene implements GameScene {
 
   updatePlayButton() {
     const text = (this.playButton.children[1] as Text);
-    text.text = `出招 (${this.selectedCardIndices.size}/5)`;
-    this.playButton.alpha = this.selectedCardIndices.size === 5 ? 1 : 0.5;
+    const count = this.selectedCardIndices.size;
+    text.text = `出招 (${count}/5)`;
+    // Allow play if > 0
+    this.playButton.alpha = count > 0 ? 1 : 0.5;
   }
 
   onPlayCards() {
     this.audio.ensureResumed();
-    if (this.selectedCardIndices.size !== 5) return;
+    // Allow 1-5 cards
+    if (this.selectedCardIndices.size === 0 || this.selectedCardIndices.size > 5) return;
 
     this.audio.play('move');
 

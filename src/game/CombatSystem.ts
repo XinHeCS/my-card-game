@@ -68,10 +68,9 @@ export class CombatSystem {
   playTurn(selectedCardIndices: number[]) {
     if (this.currentPhase !== 'Action') return;
 
-    // Rule: Must play exactly 5 cards (or allow less for flexibility? User prompt says "Must be formed by 5 cards")
-    // "每次出招必须由五张招式牌构成" -> Strict rule.
-    if (selectedCardIndices.length !== 5) {
-      this.log.push('必须选择5张牌！');
+    // Rule: Can play 1 to 5 cards (previously exactly 5)
+    if (selectedCardIndices.length === 0 || selectedCardIndices.length > 5) {
+      this.log.push('必须选择 1 到 5 张牌！');
       return;
     }
 
@@ -93,10 +92,14 @@ export class CombatSystem {
   resolveCombat(playedCards: MoveCard[]) {
     this.currentPhase = 'Resolution';
 
-    // 1. Calculate Base Damage
-    // Formula: Sum of (Card Power * Player Jingdao)
-    let totalPower = playedCards.reduce((sum, card) => sum + card.power, 0);
-    let totalDamage = (this.playerStats.attack + playedCards.reduce((s, c) => s + c.power * 5, 0)); // Scaling up card power for balance
+    // 1. Calculate Base Stats from Cards
+    let cardPower = playedCards.reduce((sum, card) => sum + card.power, 0);
+    let cardDef = playedCards.reduce((sum, card) => sum + (card.def || 0), 0);
+
+    // Damage Formula: (Player Attack + Card Power) * Jingdao
+    // Assuming Jingdao is a multiplier (default 1). If user meant flat value, adjust here.
+    // Prompt said: "Power X Jingdao". Let's stick to (Atk + CardPower) * Jingdao
+    let totalDamage = (this.playerStats.attack + cardPower) * this.playerStats.jingdao;
 
     // 2. Trigger Techniques
     // "当玩家打出特定的招式牌组合时，功法牌会自动提供增益效果"
@@ -118,16 +121,26 @@ export class CombatSystem {
 
     // 4. Enemy Turn (Simple AI for MVP)
     if (this.enemyStats.hp > 0) {
-      this.enemyTurn();
+      // Pass temporary defense bonus (Shield) from cards
+      this.enemyTurn(cardDef);
     }
   }
 
-  enemyTurn() {
+  enemyTurn(bonusDef: number = 0) {
     // Simple Enemy Logic: Attack for base damage
     const enemyDmg = this.enemyStats.attack * this.enemyStats.jingdao;
-    const actualDmg = Math.max(0, enemyDmg - this.playerStats.defense);
+
+    // Total Player Defense = Base Defense + Bonus Defense from cards (Shield)
+    const totalPlayerDef = this.playerStats.defense + bonusDef;
+
+    const actualDmg = Math.max(0, enemyDmg - totalPlayerDef);
     this.playerStats.hp = Math.max(0, this.playerStats.hp - actualDmg);
-    this.log.push(`敌人攻击！受到了 ${actualDmg} 点伤害。`);
+
+    let msg = `敌人攻击！受到了 ${actualDmg} 点伤害。`;
+    if (bonusDef > 0) {
+        msg += ` (护盾抵消了部分伤害)`;
+    }
+    this.log.push(msg);
   }
 
   endTurn() {
