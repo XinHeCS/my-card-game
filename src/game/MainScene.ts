@@ -363,12 +363,23 @@ export class MainScene implements GameScene {
   onCardClick(index: number) {
     this.audio.ensureResumed();
     this.audio.play('click');
-    if (this.selectedCardIndices.has(index)) {
-      this.selectedCardIndices.delete(index);
-    } else {
-      if (this.selectedCardIndices.size < 5) {
-        this.selectedCardIndices.add(index);
-      }
+    if (this.combatSystem.currentPhase === 'Action') {
+        if (this.selectedCardIndices.has(index)) {
+          this.selectedCardIndices.delete(index);
+        } else {
+          if (this.selectedCardIndices.size < 5) {
+            this.selectedCardIndices.add(index);
+          }
+        }
+    } else if (this.combatSystem.currentPhase === 'Discard') {
+        const requiredCount = this.combatSystem.hand.length - 7;
+        if (this.selectedCardIndices.has(index)) {
+          this.selectedCardIndices.delete(index);
+        } else {
+          if (this.selectedCardIndices.size < requiredCount) {
+            this.selectedCardIndices.add(index);
+          }
+        }
     }
     this.renderHand();
     this.updatePlayButton();
@@ -377,34 +388,70 @@ export class MainScene implements GameScene {
   updatePlayButton() {
     const text = (this.playButton.children[1] as Text);
     const count = this.selectedCardIndices.size;
-    text.text = count === 0 ? '结束回合' : `出招 (${count}/5)`;
-    // Always allow play (either 0 cards to skip, or 1-5 to attack)
-    this.playButton.alpha = 1;
+
+    if (this.combatSystem.currentPhase === 'Action') {
+        text.text = count === 0 ? '结束回合' : `出招 (${count}/5)`;
+        this.playButton.alpha = 1;
+        this.playButton.eventMode = 'static';
+    } else if (this.combatSystem.currentPhase === 'Discard') {
+        const requiredCount = this.combatSystem.hand.length - 7;
+        text.text = `丢弃 (${count}/${requiredCount})`;
+        if (count === requiredCount) {
+            this.playButton.alpha = 1;
+            this.playButton.eventMode = 'static';
+        } else {
+            this.playButton.alpha = 0.5;
+            this.playButton.eventMode = 'none';
+        }
+    } else {
+        text.text = '结算中...';
+        this.playButton.alpha = 0.5;
+        this.playButton.eventMode = 'none';
+    }
   }
 
   onPlayCards() {
     this.audio.ensureResumed();
-    // Allow 0-5 cards
-    if (this.selectedCardIndices.size > 5) return;
 
-    this.audio.play('move');
+    if (this.combatSystem.currentPhase === 'Action') {
+        if (this.selectedCardIndices.size > 5) return;
 
-    const indices = Array.from(this.selectedCardIndices);
-    this.combatSystem.playTurn(indices);
-    this.selectedCardIndices.clear();
+        this.audio.play('move');
 
-    this.updateUI();
+        const indices = Array.from(this.selectedCardIndices);
+        this.combatSystem.playTurn(indices);
+        this.selectedCardIndices.clear();
 
-    // Auto next turn logic for flow
-    if (this.combatSystem.currentPhase === 'End') {
-        setTimeout(() => {
-            this.combatSystem.startTurn();
-            this.renderHand();
-            this.updateUI();
-        }, 1500);
-    } else {
-        this.renderHand();
+        this.updateUI();
+        this.checkPhaseTransition();
+    } else if (this.combatSystem.currentPhase === 'Discard') {
+        const requiredCount = this.combatSystem.hand.length - 7;
+        if (this.selectedCardIndices.size !== requiredCount) return;
+
+        this.audio.play('move');
+        const indices = Array.from(this.selectedCardIndices);
+        this.combatSystem.discardCards(indices);
+        this.selectedCardIndices.clear();
+
+        this.updateUI();
+        this.checkPhaseTransition();
     }
+  }
+
+  checkPhaseTransition() {
+      if (this.combatSystem.currentPhase === 'End') {
+          setTimeout(() => {
+              this.combatSystem.startTurn();
+              this.renderHand();
+              this.updateUI();
+          }, 1500);
+      } else if (this.combatSystem.currentPhase === 'Discard') {
+          // Stay on current scene, re-render hand for discard selection
+          this.renderHand();
+          this.updateUI();
+      } else {
+          this.renderHand();
+      }
   }
 
   updateUI() {

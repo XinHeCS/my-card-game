@@ -61,10 +61,11 @@ export class CombatSystem {
     this.playerStats.defense = 0;
     this.playerStats.jingdao = 0;
 
-    // Rule: Fill hand to 7 cards
-    const cardsToDraw = 7 - this.hand.length;
-    if (cardsToDraw > 0) {
-      this.drawCards(cardsToDraw);
+    // Draw cards: 7 on turn 1, 2 on subsequent turns
+    if (this.turnCount === 1) {
+        this.drawCards(7);
+    } else {
+        this.drawCards(2);
     }
 
     this.currentPhase = 'Action';
@@ -95,7 +96,7 @@ export class CombatSystem {
     // Discard played cards
     this.discardPile.push(...playedCards);
 
-    this.endTurn();
+    this.endTurnCheck();
   }
 
   resolveCombat(playedCards: MoveCard[]) {
@@ -155,17 +156,30 @@ export class CombatSystem {
     this.log.push(msg);
   }
 
-  endTurn() {
-    this.currentPhase = 'End';
-
-    // Rule: Discard down to 7 cards.
-    // "在结束阶段，玩家需要将多余的手牌丢弃到只剩七张"
-    // For MVP automation, let's just discard random/last cards if > 7.
-    while (this.hand.length > 7) {
-      const discarded = this.hand.pop();
-      if (discarded) this.discardPile.push(discarded);
+  endTurnCheck() {
+    if (this.hand.length > 7) {
+        this.currentPhase = 'Discard';
+        this.log.push(`手牌过多，请选择 ${this.hand.length - 7} 张牌丢弃。`);
+    } else {
+        this.currentPhase = 'End';
+        this.log.push('回合结束。');
     }
+  }
 
-    this.log.push('回合结束。');
+  discardCards(selectedCardIndices: number[]) {
+      if (this.currentPhase !== 'Discard') return;
+      const cardsToDiscardCount = this.hand.length - 7;
+      if (selectedCardIndices.length !== cardsToDiscardCount) {
+          return;
+      }
+
+      const discardedCards = selectedCardIndices.map(i => this.hand[i]);
+      selectedCardIndices.sort((a, b) => b - a).forEach(i => {
+          this.hand.splice(i, 1);
+      });
+      this.discardPile.push(...discardedCards);
+
+      this.currentPhase = 'End';
+      this.log.push(`丢弃了 ${cardsToDiscardCount} 张牌，回合结束。`);
   }
 }
