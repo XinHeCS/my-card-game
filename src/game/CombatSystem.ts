@@ -1,12 +1,13 @@
 import { MoveCard, TechniqueCard, PlayerStats, GamePhase } from '../types/game';
 import { BASE_MOVES } from '../data/moves';
-import { EnemyAI, getEnemyAI } from './EnemyAI';
+import { EnemyAI, getEnemyAI, EnemyState } from './EnemyAI';
+import { LevelConfig } from './GameData';
 
 export interface CombatHooks {
   onCardPlay?: (card: MoveCard, index: number) => Promise<void>;
   onTechTrigger?: (tech: TechniqueCard, result: any, diffs: any) => Promise<void>;
-  onPlayerAttack?: (damage: number, actualDamage: number) => Promise<void>;
-  onEnemyAttack?: (damage: number, actualDamage: number) => Promise<void>;
+  onPlayerAttack?: (enemy: EnemyState, damage: number, actualDamage: number) => Promise<void>;
+  onEnemyAttack?: (enemy: EnemyState, damage: number, actualDamage: number) => Promise<void>;
 }
 
 export class CombatSystem {
@@ -15,16 +16,7 @@ export class CombatSystem {
   discardPile: MoveCard[] = [];
 
   playerStats: PlayerStats;
-  enemyStats: PlayerStats;
-
-  private _enemyId?: string;
-  get enemyId(): string | undefined { return this._enemyId; }
-  set enemyId(val: string | undefined) {
-      this._enemyId = val;
-      this.ai = getEnemyAI(val);
-  }
-
-  ai!: EnemyAI;
+  enemies: EnemyState[] = [];
 
   equippedTechniques: TechniqueCard[] = [];
 
@@ -40,11 +32,19 @@ export class CombatSystem {
     this.drawPile = [...initialDeck]; // Deep copy ideally, but refs are ok for readonly data
     this.shuffleDeck();
     this.equippedTechniques = techniques;
-    this.ai = getEnemyAI(undefined);
 
     // Default Stats
     this.playerStats = { hp: 100, maxHp: 100, attack: 10, defense: 5, jingdao: 1 };
-    this.enemyStats = { hp: 100, maxHp: 100, attack: 8, defense: 3, jingdao: 1 };
+  }
+
+  loadLevel(levelConfig: LevelConfig) {
+    this.enemies = levelConfig.enemies.map(e => ({
+      id: e.id,
+      name: e.name,
+      stats: { ...e.stats },
+      ai: getEnemyAI(e.id),
+      spritePath: e.spritePath
+    }));
   }
 
   shuffleDeck() {
@@ -93,7 +93,7 @@ export class CombatSystem {
     this.currentPhase = 'Action';
   }
 
-  async playTurn(selectedCardIndices: number[], hooks?: CombatHooks) {
+  async playTurn(selectedCardIndices: number[], targetIndices?: number[], hooks?: CombatHooks) {
     if (this.currentPhase !== 'Action') return;
 
     // Rule: Can play 0 to 5 cards
@@ -113,7 +113,7 @@ export class CombatSystem {
       this.hand.splice(i, 1);
     });
 
-    await this.resolveCombat(playedCards, hooks);
+    await this.resolveCombat(playedCards, targetIndices, hooks);
 
     // Discard played cards
     this.discardPile.push(...playedCards);
@@ -121,7 +121,7 @@ export class CombatSystem {
     this.endTurnCheck();
   }
 
-  async resolveCombat(playedCards: MoveCard[], hooks?: CombatHooks) {
+  async resolveCombat(playedCards: MoveCard[], targetIndices?: number[], hooks?: CombatHooks) {
     this.currentPhase = 'Resolution';
 
     // 1. Process Cards one by one for animation
@@ -140,6 +140,16 @@ export class CombatSystem {
     // Initial damage calculation
     let totalDamage = this.playerStats.attack * this.playerStats.jingdao;
 
+    // Determine targets
+    let aliveEnemies = this.enemies.filter(e => e.stats.hp > 0);
+    if (aliveEnemies.length === 0) return;
+
+    let targets = aliveEnemies;
+    if (targetIndices && targetIndices.length > 0) {
+        targets = targetIndices.map(i => this.enemies[i]).filter(e => e && e.stats.hp > 0);
+        if (targets.length === 0) targets = aliveEnemies; // Fallback
+    }
+
     // 2. Trigger Techniques sequentially
     for (let tech of this.equippedTechniques) {
       if (tech.triggerCondition(playedCards)) {
@@ -147,9 +157,12 @@ export class CombatSystem {
         const oldJing = this.playerStats.jingdao;
         const oldDef = this.playerStats.defense;
 
-        const result = tech.effect(this.playerStats, this.enemyStats, totalDamage, playedCards);
+        // Since effect signature only takes one enemy, let's just pass the first target for now
+        // A better refactor would update effect signature, but let's keep it simple
+        const firstTargetStats = targets[0].stats;
+        const result = tech.effect(this.playerStats, firstTargetStats, totalDamage, playedCards);
         this.playerStats = result.player;
-        this.enemyStats = result.enemy;
+        targets[0].stats = result.enemy;
 
         const diffs = {
             atkDiff: this.playerStats.attack - oldAtk,
@@ -167,39 +180,45 @@ export class CombatSystem {
       }
     }
 
-    // 3. Apply Damage to Enemy
-    const actualDamage = Math.max(0, totalDamage - this.enemyStats.defense);
-    this.enemyStats.hp = Math.max(0, this.enemyStats.hp - actualDamage);
+    // 3. Apply Damage to Targets (divided equally)
+    const damagePerTarget = Math.floor(totalDamage / targets.length);
 
-    // Track max damage
-    if (actualDamage > this.maxDamage) {
-        this.maxDamage = actualDamage;
-        this.maxDamageCombo = [...playedCards];
+    for (let target of targets) {
+        const actualDamage = Math.max(0, damagePerTarget - target.stats.defense);
+        target.stats.hp = Math.max(0, target.stats.hp - actualDamage);
+
+        // Track max damage
+        if (actualDamage > this.maxDamage) {
+            this.maxDamage = actualDamage;
+            this.maxDamageCombo = [...playedCards];
+        }
+
+        this.log.push(`对 ${target.name} 造成了 ${actualDamage} 点伤害！ (被格挡: ${Math.min(damagePerTarget, target.stats.defense)})`);
+
+        await target.ai.onDamageTaken(this, target, actualDamage, hooks);
+
+        if (hooks && hooks.onPlayerAttack) {
+            await hooks.onPlayerAttack(target, damagePerTarget, actualDamage);
+        }
     }
 
-    this.log.push(`造成了 ${actualDamage} 点伤害！ (被格挡: ${Math.min(totalDamage, this.enemyStats.defense)})`);
-
-    await this.ai.onDamageTaken(this, actualDamage, hooks);
-
-    if (hooks && hooks.onPlayerAttack) {
-        await hooks.onPlayerAttack(totalDamage, actualDamage);
-    }
-
-    // Check Win
-    if (this.enemyStats.hp <= 0) {
+    // Check Win (all enemies dead)
+    if (this.enemies.every(e => e.stats.hp <= 0)) {
         this.currentPhase = 'GameOver';
-        this.log.push('敌人被击败！你赢了！');
+        this.log.push('所有敌人被击败！你赢了！');
         return;
     }
 
-    // 4. Enemy Turn
-    if (this.enemyStats.hp > 0) {
-      await this.enemyTurn(cardDef, hooks);
+    // 4. Enemy Turn (all alive enemies take a turn)
+    const remainingEnemies = this.enemies.filter(e => e.stats.hp > 0);
+    for (let enemy of remainingEnemies) {
+        if (this.playerStats.hp <= 0) break;
+        await this.enemyTurn(enemy, cardDef, hooks);
     }
   }
 
-  async enemyTurn(bonusDef: number = 0, hooks?: CombatHooks) {
-    await this.ai.takeTurn(this, bonusDef, hooks);
+  async enemyTurn(enemy: EnemyState, bonusDef: number = 0, hooks?: CombatHooks) {
+    await enemy.ai.takeTurn(this, enemy, bonusDef, hooks);
   }
 
   endTurnCheck() {

@@ -44,7 +44,7 @@ export class LevelSelectScene implements GameScene {
     titleText.y = 80;
     this.container.addChild(titleText);
 
-    const levels = GameData.getInstance().enemies;
+    const levels = GameData.getInstance().levels;
     const cardWidth = 250;
     const spacing = 300;
     const totalW = levels.length * spacing;
@@ -74,8 +74,17 @@ export class LevelSelectScene implements GameScene {
         diffText.y = -60;
         card.addChild(diffText);
 
+        // Calculate total stats for display
+        let totalHp = 0, totalAtk = 0, totalDef = 0, totalJing = 0;
+        level.enemies.forEach(e => {
+            totalHp += e.stats.hp;
+            totalAtk += e.stats.attack;
+            totalDef += e.stats.defense;
+            totalJing += e.stats.jingdao;
+        });
+
         const statText = new Text({
-            text: `HP: ${level.stats.hp}\n防御: ${level.stats.defense}\n力量: ${level.stats.attack}\n劲道: ${level.stats.jingdao}`,
+            text: `敌人数量: ${level.enemies.length}\n总HP: ${totalHp}\n防御: ${totalDef}\n力量: ${totalAtk}\n劲道: ${totalJing}`,
             style: { fontSize: 18, align: 'center' }
         });
         statText.anchor.set(0.5);

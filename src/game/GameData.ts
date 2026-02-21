@@ -7,7 +7,13 @@ export interface EnemyConfig {
   name: string;
   stats: PlayerStats;
   spritePath: string;
+}
+
+export interface LevelConfig {
+  id: string;
+  name: string;
   difficulty: string;
+  enemies: EnemyConfig[];
 }
 
 const STORAGE_KEY = 'VAG_PLAYGROUND_DATA_V1';
@@ -24,27 +30,51 @@ export class GameData {
   public allTechniques: TechniqueCard[] = TECHNIQUES;
 
   // Levels
-  public enemies: EnemyConfig[] = [
+  public levels: LevelConfig[] = [
     {
-      id: 'training_dummy',
+      id: 'level_1',
       name: '木人桩',
-      stats: { hp: 50, maxHp: 50, attack: 5, defense: 0, jingdao: 1 },
-      spritePath: 'images/enemy.png',
-      difficulty: '简单'
+      difficulty: '简单',
+      enemies: [
+        {
+          id: 'training_dummy',
+          name: '木人桩甲',
+          stats: { hp: 50, maxHp: 50, attack: 5, defense: 0, jingdao: 1 },
+          spritePath: 'images/enemy.png'
+        }
+      ]
     },
     {
-      id: 'rogue_monk',
-      name: '赛博妖僧',
-      stats: { hp: 100, maxHp: 100, attack: 4, defense: 5, jingdao: 4 },
-      spritePath: 'images/enemy.png',
-      difficulty: '普通'
+      id: 'level_2',
+      name: '双生妖僧',
+      difficulty: '普通',
+      enemies: [
+        {
+          id: 'rogue_monk',
+          name: '赛博妖僧·阳',
+          stats: { hp: 80, maxHp: 80, attack: 4, defense: 5, jingdao: 4 },
+          spritePath: 'images/enemy.png'
+        },
+        {
+          id: 'rogue_monk',
+          name: '赛博妖僧·阴',
+          stats: { hp: 80, maxHp: 80, attack: 4, defense: 5, jingdao: 4 },
+          spritePath: 'images/enemy.png'
+        }
+      ]
     },
     {
-      id: 'mecha_general',
+      id: 'level_3',
       name: '机甲武圣',
-      stats: { hp: 200, maxHp: 200, attack: 12, defense: 8, jingdao: 2 },
-      spritePath: 'images/enemy.png',
-      difficulty: '困难'
+      difficulty: '困难',
+      enemies: [
+        {
+          id: 'mecha_general',
+          name: '机甲武圣',
+          stats: { hp: 200, maxHp: 200, attack: 12, defense: 8, jingdao: 2 },
+          spritePath: 'images/enemy.png'
+        }
+      ]
     }
   ];
 

@@ -2,11 +2,12 @@ import { Container, Sprite, Text, TextStyle, Graphics, Texture, Assets } from 'p
 import { Engine, GameScene } from '../engine/Engine';
 import { World } from '../engine/World';
 import { CombatSystem } from './CombatSystem';
-import { GameData, EnemyConfig } from './GameData';
+import { GameData, LevelConfig } from './GameData';
 import { getAudioSystem, AudioSystem } from '../audio/AudioSystem';
 import { LevelSelectScene } from './LevelSelectScene';
 import { ResultScene, GameResult } from './ResultScene';
 import { MoveCard, TechniqueCard } from '../types/game';
+import { EnemyState } from './EnemyAI';
 
 export class MainScene implements GameScene {
   public world: World;
@@ -14,7 +15,7 @@ export class MainScene implements GameScene {
   private audio: AudioSystem;
 
   private combatSystem: CombatSystem;
-  private enemyConfig?: EnemyConfig;
+  private levelConfig?: LevelConfig;
 
   // Containers
   private container: Container;
@@ -26,12 +27,12 @@ export class MainScene implements GameScene {
   // Sprites
   private background!: Sprite;
   private playerSprite!: Sprite;
-  private enemySprite!: Sprite;
+  private enemySprites: Sprite[] = [];
 
   // Text
   private logText!: Text;
   private playerStatsText!: Text;
-  private enemyStatsText!: Text;
+  private enemyStatsTexts: Text[] = [];
   private turnText!: Text;
   private powerJingdaoText!: Text;
 
@@ -41,9 +42,9 @@ export class MainScene implements GameScene {
 
   private draggingCard: { index: number, startX: number, startY: number, pointerId: number } | null = null;
 
-  constructor(engine: Engine, enemyConfig?: EnemyConfig) {
+  constructor(engine: Engine, levelConfig?: LevelConfig) {
     this.engine = engine;
-    this.enemyConfig = enemyConfig;
+    this.levelConfig = levelConfig;
     this.world = new World();
     this.audio = getAudioSystem();
 
@@ -63,10 +64,8 @@ export class MainScene implements GameScene {
     const gameData = GameData.getInstance();
     this.combatSystem = new CombatSystem(gameData.currentDeck, gameData.currentTechniques);
 
-    // Apply Enemy Config if provided
-    if (this.enemyConfig) {
-        this.combatSystem.enemyStats = { ...this.enemyConfig.stats };
-        this.combatSystem.enemyId = this.enemyConfig.id;
+    if (this.levelConfig) {
+        this.combatSystem.loadLevel(this.levelConfig);
     }
   }
 
@@ -79,8 +78,10 @@ export class MainScene implements GameScene {
         const playerTexture = await Assets.load('images/player.png');
         this.playerSprite = Sprite.from(playerTexture);
 
-        const enemyTexture = await Assets.load('images/enemy.png');
-        this.enemySprite = Sprite.from(enemyTexture);
+        for (let enemy of this.combatSystem.enemies) {
+            const enemyTexture = await Assets.load(enemy.spritePath);
+            this.enemySprites.push(Sprite.from(enemyTexture));
+        }
 
         this.setupScene();
         this.startGame();
@@ -89,8 +90,11 @@ export class MainScene implements GameScene {
         // Fallback
         this.background = Sprite.from('white');
         this.playerSprite = Sprite.from('green');
-        this.enemySprite = Sprite.from('red');
         this.background.tint = 0x000000;
+
+        for (let enemy of this.combatSystem.enemies) {
+            this.enemySprites.push(Sprite.from('red'));
+        }
 
         this.setupScene();
         this.startGame();
@@ -112,11 +116,19 @@ export class MainScene implements GameScene {
     this.playerSprite.scale.set(4);
     this.gameLayer.addChild(this.playerSprite);
 
-    this.enemySprite.anchor.set(0.5, 1);
-    this.enemySprite.x = width * 0.75;
-    this.enemySprite.y = height * 0.75;
-    this.enemySprite.scale.set(4);
-    this.gameLayer.addChild(this.enemySprite);
+    const enemyCount = this.enemySprites.length;
+    const startX = width * 0.6;
+    const endX = width * 0.9;
+    const spacingX = enemyCount > 1 ? (endX - startX) / (enemyCount - 1) : 0;
+
+    this.enemySprites.forEach((sprite, index) => {
+        sprite.anchor.set(0.5, 1);
+        sprite.x = enemyCount === 1 ? width * 0.75 : startX + index * spacingX;
+        sprite.y = height * 0.75;
+        // Make enemies slightly smaller if there are many
+        sprite.scale.set(enemyCount > 1 ? 3 : 4);
+        this.gameLayer.addChild(sprite);
+    });
 
     this.setupUI(width, height);
   }
@@ -141,10 +153,26 @@ export class MainScene implements GameScene {
     this.playerStatsText.y = 20;
     this.uiLayer.addChild(this.playerStatsText);
 
-    this.enemyStatsText = new Text({ text: '敌人 HP: 100', style });
-    this.enemyStatsText.x = width - 350;
-    this.enemyStatsText.y = 20;
-    this.uiLayer.addChild(this.enemyStatsText);
+    const enemyStyle = new TextStyle({
+      fontFamily: 'Arial',
+      fontSize: 18,
+      fill: 'white',
+      stroke: { color: '#000000', width: 3 },
+      align: 'center'
+    });
+
+    this.enemyStatsTexts = [];
+    this.combatSystem.enemies.forEach((enemy, index) => {
+        const text = new Text({ text: `${enemy.name}\nHP: 100`, style: enemyStyle });
+        text.anchor.set(0.5, 1);
+        const sprite = this.enemySprites[index];
+        if (sprite) {
+            text.x = sprite.x;
+            text.y = sprite.y - sprite.height - 10;
+        }
+        this.enemyStatsTexts.push(text);
+        this.uiLayer.addChild(text);
+    });
 
     // Turn Info
     this.turnText = new Text({ text: '回合: 1', style });
@@ -597,21 +625,31 @@ export class MainScene implements GameScene {
                     techContainer.scale.set(1.0);
                 }
             },
-            onPlayerAttack: async (damage: number, actualDamage: number) => {
+            onPlayerAttack: async (enemy: EnemyState, damage: number, actualDamage: number) => {
                 if (damage > 0) {
                     const w = this.engine.app.renderer.width;
                     const h = this.engine.app.renderer.height;
-                    await this.animateProjectile(w / 2, h / 2 - 50, w - 250, 40, 0xffaa00);
-                    this.spawnFloatingText(w - 250, 40, `-${actualDamage}`, '#ff0000');
+                    const enemyIndex = this.combatSystem.enemies.indexOf(enemy);
+                    const sprite = this.enemySprites[enemyIndex];
+                    const targetX = sprite ? sprite.x : w - 250;
+                    const targetY = sprite ? sprite.y - sprite.height / 2 : 40;
+
+                    await this.animateProjectile(w / 2, h / 2 - 50, targetX, targetY, 0xffaa00);
+                    this.spawnFloatingText(targetX, targetY, `-${actualDamage}`, '#ff0000');
                 }
                 this.updateUI();
                 await this.sleep(600);
             },
-            onEnemyAttack: async (damage: number, actualDamage: number) => {
+            onEnemyAttack: async (enemy: EnemyState, damage: number, actualDamage: number) => {
                 if (damage > 0) {
                     const w = this.engine.app.renderer.width;
-                    await this.animateProjectile(w - 250, 40, 70, 40, 0xff0000);
-                    this.spawnFloatingText(70, 40, `-${actualDamage}`, '#ff0000');
+                    const enemyIndex = this.combatSystem.enemies.indexOf(enemy);
+                    const sprite = this.enemySprites[enemyIndex];
+                    const startX = sprite ? sprite.x : w - 250;
+                    const startY = sprite ? sprite.y - sprite.height / 2 : 40;
+
+                    await this.animateProjectile(startX, startY, this.playerSprite.x, this.playerSprite.y - this.playerSprite.height / 2, 0xff0000);
+                    this.spawnFloatingText(this.playerSprite.x, this.playerSprite.y - this.playerSprite.height / 2, `-${actualDamage}`, '#ff0000');
                 }
                 this.updateUI();
                 await this.sleep(600);
@@ -621,7 +659,7 @@ export class MainScene implements GameScene {
         this.selectedCardIndices.clear();
         this.renderHand(); // Render empty selection
 
-        await this.combatSystem.playTurn(indices, hooks);
+        await this.combatSystem.playTurn(indices, undefined, hooks);
 
         this.playButton.visible = true;
         this.updateUI();
@@ -643,7 +681,7 @@ export class MainScene implements GameScene {
   checkPhaseTransition() {
       if (this.combatSystem.currentPhase === 'GameOver') {
           setTimeout(() => {
-              const isWin = this.combatSystem.enemyStats.hp <= 0;
+              const isWin = this.combatSystem.enemies.every(e => e.stats.hp <= 0);
               const resultData: GameResult = {
                   isWin: isWin,
                   maxDamage: this.combatSystem.maxDamage,
@@ -672,9 +710,19 @@ export class MainScene implements GameScene {
 
   updateUI() {
     const p = this.combatSystem.playerStats;
-    const e = this.combatSystem.enemyStats;
     this.playerStatsText.text = `玩家 HP: ${p.hp}/${p.maxHp}\n防: ${p.defense}`;
-    this.enemyStatsText.text = `敌人 HP: ${e.hp}/${e.maxHp}\n防: ${e.defense}\n力量: ${e.attack}\n劲道: ${e.jingdao}`;
+
+    this.combatSystem.enemies.forEach((e, index) => {
+        const text = this.enemyStatsTexts[index];
+        if (text) {
+            text.text = `${e.name}\nHP: ${e.stats.hp}/${e.stats.maxHp}\n防: ${e.stats.defense} 力量: ${e.stats.attack} 劲: ${e.stats.jingdao}`;
+            if (e.stats.hp <= 0) {
+                text.alpha = 0.5;
+                if (this.enemySprites[index]) this.enemySprites[index].alpha = 0.5;
+            }
+        }
+    });
+
     this.turnText.text = `回合: ${this.combatSystem.turnCount}`;
 
     this.updatePowerJingdaoText();
@@ -696,7 +744,6 @@ export class MainScene implements GameScene {
       }
       if (this.uiLayer) {
         // Reposition UI
-        this.enemyStatsText.x = width - 350;
         this.turnText.x = width / 2;
         this.handContainer.x = width / 2;
         this.handContainer.y = height - 200;
@@ -710,10 +757,22 @@ export class MainScene implements GameScene {
              this.playerSprite.x = width * 0.25;
              this.playerSprite.y = height * 0.75;
         }
-        if (this.enemySprite) {
-             this.enemySprite.x = width * 0.75;
-             this.enemySprite.y = height * 0.75;
-        }
+
+        const enemyCount = this.enemySprites.length;
+        const startX = width * 0.6;
+        const endX = width * 0.9;
+        const spacingX = enemyCount > 1 ? (endX - startX) / (enemyCount - 1) : 0;
+
+        this.enemySprites.forEach((sprite, index) => {
+            if (sprite) {
+                sprite.x = enemyCount === 1 ? width * 0.75 : startX + index * spacingX;
+                sprite.y = height * 0.75;
+                if (this.enemyStatsTexts[index]) {
+                    this.enemyStatsTexts[index].x = sprite.x;
+                    this.enemyStatsTexts[index].y = sprite.y - sprite.height - 10;
+                }
+            }
+        });
       }
   }
 
