@@ -56,6 +56,10 @@ export class CombatSystem {
     this.currentPhase = 'Preparation';
     this.log.push(`第 ${this.turnCount} 回合开始。`);
 
+    // Reset stats per turn
+    this.playerStats.attack = 0;
+    this.playerStats.defense = 0;
+
     // Rule: Fill hand to 7 cards
     const cardsToDraw = 7 - this.hand.length;
     if (cardsToDraw > 0) {
