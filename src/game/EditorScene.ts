@@ -146,10 +146,8 @@ export class EditorScene implements GameScene {
 
   setupInfoPanel(w: number) {
       this.infoContainer.removeChildren();
+      // Background will be drawn in showInfo
       const bg = new Graphics();
-      bg.roundRect(0, 0, 220, 100, 10);
-      bg.fill({ color: 0x000000, alpha: 0.9 });
-      bg.stroke({ width: 1, color: 0xffff00 });
       this.infoContainer.addChild(bg);
 
       this.infoTitle.position.set(10, 10);
@@ -338,6 +336,18 @@ export class EditorScene implements GameScene {
           desc += `  格挡: ${item.def}`;
       }
       this.infoDesc.text = desc;
+
+      // Dynamic Background
+      const bg = this.infoContainer.children[0] as Graphics;
+      bg.clear();
+      const titleHeight = this.infoTitle.height;
+      const descHeight = this.infoDesc.height;
+      const totalHeight = 35 + descHeight + 10; // 35 is title top + margin, 10 padding bottom
+
+      bg.roundRect(0, 0, 220, totalHeight, 10);
+      bg.fill({ color: 0x000000, alpha: 0.9 });
+      bg.stroke({ width: 1, color: 0xffff00 });
+
       this.updateInfoPosition(x, y);
       this.infoContainer.visible = true;
       // Bring to front
