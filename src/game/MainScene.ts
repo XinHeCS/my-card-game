@@ -337,9 +337,10 @@ export class MainScene implements GameScene {
       nameText.y = 70;
       cardContainer.addChild(nameText);
 
-      // Power/Def Info
+      // Power/Def/Jingdao Info
       let stats = `威:${card.power}`;
       if (card.def) stats += `\n防:${card.def}`;
+      if (card.jingdao) stats += `\n劲:+${card.jingdao}`;
 
       const infoText = new Text({ text: stats, style: { fontFamily: 'Arial', fontSize: 12, fill: '#333', align: 'center' } });
       infoText.anchor.set(0.5, 0);
