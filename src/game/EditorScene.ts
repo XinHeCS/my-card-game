@@ -354,11 +354,14 @@ export class EditorScene implements GameScene {
   showInfo(item: any, x: number, y: number) {
       this.infoTitle.text = `${item.icon} ${item.name}`;
       let desc = item.description;
-      if (item.power !== undefined) {
+      if (item.power !== undefined && item.power !== 0) {
           desc += `\n威力: ${item.power}`;
       }
       if (item.def) {
           desc += `  格挡: ${item.def}`;
+      }
+      if (item.jingdao) {
+          desc += `  劲道: +${item.jingdao}`;
       }
       this.infoDesc.text = desc;
 
