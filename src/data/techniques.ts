@@ -59,13 +59,13 @@ export const TECHNIQUES: TechniqueCard[] = [
     id: 'heavy-hand',
     name: '大力金刚掌',
     icon: '💪',
-    description: '[重击]无视敌人5点防御。',
+    description: '打出[拳-重击]时，造成的伤害增加5点（破防）。',
     type: 'Triggered',
     triggerCondition: (playedCards: MoveCard[]) => {
-      return playedCards.some(c => c.weight === 'Heavy');
+      return playedCards.some(c => c.weapon === 'Fist' && c.weight === 'Heavy');
     },
     effect: (player, enemy, damage, playedCards) => {
-      return { player, enemy, damage: damage + 5, message: '大力金刚掌！无视防御！' };
+      return { player, enemy, damage: damage + 5, message: '大力金刚掌！' };
     }
   }
 ];
