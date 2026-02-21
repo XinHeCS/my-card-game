@@ -15,6 +15,8 @@ export class CombatSystem {
 
   playerStats: PlayerStats;
   enemyStats: PlayerStats;
+  enemyId?: string;
+  isMechaEnraged: boolean = false;
 
   equippedTechniques: TechniqueCard[] = [];
 
@@ -167,6 +169,13 @@ export class CombatSystem {
     }
 
     this.log.push(`造成了 ${actualDamage} 点伤害！ (被格挡: ${Math.min(totalDamage, this.enemyStats.defense)})`);
+
+    if (this.enemyId === 'mecha_general' && this.enemyStats.hp > 0 && this.enemyStats.hp <= this.enemyStats.maxHp * 0.1 && !this.isMechaEnraged) {
+        this.isMechaEnraged = true;
+        this.enemyStats.attack = 7;
+        this.enemyStats.jingdao = 7;
+        this.log.push('⚠️ 机甲武圣触发【核心过载】！力量变为7，劲道变为7！');
+    }
 
     if (hooks && hooks.onPlayerAttack) {
         await hooks.onPlayerAttack(totalDamage, actualDamage);

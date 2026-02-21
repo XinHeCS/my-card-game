@@ -66,6 +66,7 @@ export class MainScene implements GameScene {
     // Apply Enemy Config if provided
     if (this.enemyConfig) {
         this.combatSystem.enemyStats = { ...this.enemyConfig.stats };
+        this.combatSystem.enemyId = this.enemyConfig.id;
     }
   }
 
