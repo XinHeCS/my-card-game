@@ -1,5 +1,6 @@
 import { MoveCard, TechniqueCard, PlayerStats, GamePhase } from '../types/game';
 import { BASE_MOVES } from '../data/moves';
+import { EnemyAI, getEnemyAI } from './EnemyAI';
 
 export interface CombatHooks {
   onCardPlay?: (card: MoveCard, index: number) => Promise<void>;
@@ -15,8 +16,15 @@ export class CombatSystem {
 
   playerStats: PlayerStats;
   enemyStats: PlayerStats;
-  enemyId?: string;
-  isMechaEnraged: boolean = false;
+
+  private _enemyId?: string;
+  get enemyId(): string | undefined { return this._enemyId; }
+  set enemyId(val: string | undefined) {
+      this._enemyId = val;
+      this.ai = getEnemyAI(val);
+  }
+
+  ai!: EnemyAI;
 
   equippedTechniques: TechniqueCard[] = [];
 
@@ -32,6 +40,7 @@ export class CombatSystem {
     this.drawPile = [...initialDeck]; // Deep copy ideally, but refs are ok for readonly data
     this.shuffleDeck();
     this.equippedTechniques = techniques;
+    this.ai = getEnemyAI(undefined);
 
     // Default Stats
     this.playerStats = { hp: 100, maxHp: 100, attack: 10, defense: 5, jingdao: 1 };
@@ -170,12 +179,7 @@ export class CombatSystem {
 
     this.log.push(`造成了 ${actualDamage} 点伤害！ (被格挡: ${Math.min(totalDamage, this.enemyStats.defense)})`);
 
-    if (this.enemyId === 'mecha_general' && this.enemyStats.hp > 0 && this.enemyStats.hp <= this.enemyStats.maxHp * 0.1 && !this.isMechaEnraged) {
-        this.isMechaEnraged = true;
-        this.enemyStats.attack = 7;
-        this.enemyStats.jingdao = 7;
-        this.log.push('⚠️ 机甲武圣触发【核心过载】！力量变为7，劲道变为7！');
-    }
+    await this.ai.onDamageTaken(this, actualDamage, hooks);
 
     if (hooks && hooks.onPlayerAttack) {
         await hooks.onPlayerAttack(totalDamage, actualDamage);
@@ -195,31 +199,7 @@ export class CombatSystem {
   }
 
   async enemyTurn(bonusDef: number = 0, hooks?: CombatHooks) {
-    // Simple Enemy Logic: Attack for base damage
-    const enemyDmg = this.enemyStats.attack * this.enemyStats.jingdao;
-
-    // Total Player Defense = Base Defense + Bonus Defense from cards (Shield)
-    const totalPlayerDef = this.playerStats.defense; // Note: playerStats.defense already includes bonusDef from card loop!
-    // But wait, what if techniques added more defense? It's all in playerStats.defense now.
-
-    const actualDmg = Math.max(0, enemyDmg - totalPlayerDef);
-    this.playerStats.hp = Math.max(0, this.playerStats.hp - actualDmg);
-
-    let msg = `敌人攻击！受到了 ${actualDmg} 点伤害。`;
-    if (totalPlayerDef > 0) {
-        msg += ` (护盾抵消了部分伤害)`;
-    }
-    this.log.push(msg);
-
-    if (hooks && hooks.onEnemyAttack) {
-        await hooks.onEnemyAttack(enemyDmg, actualDmg);
-    }
-
-    // Check Lose
-    if (this.playerStats.hp <= 0) {
-        this.currentPhase = 'GameOver';
-        this.log.push('你被击败了...');
-    }
+    await this.ai.takeTurn(this, bonusDef, hooks);
   }
 
   endTurnCheck() {
