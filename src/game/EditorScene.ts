@@ -355,10 +355,10 @@ export class EditorScene implements GameScene {
       this.infoTitle.text = `${item.icon} ${item.name}`;
       let desc = item.description;
       if (item.power !== undefined && item.power !== 0) {
-          desc += `\n威力: ${item.power}`;
+          desc += `\n威力: +${item.power}`;
       }
       if (item.def) {
-          desc += `  格挡: ${item.def}`;
+          desc += `  格挡: +${item.def}`;
       }
       if (item.jingdao) {
           desc += `  劲道: +${item.jingdao}`;
