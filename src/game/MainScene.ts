@@ -141,7 +141,7 @@ export class MainScene implements GameScene {
     this.uiLayer.addChild(this.playerStatsText);
 
     this.enemyStatsText = new Text({ text: '敌人 HP: 100', style });
-    this.enemyStatsText.x = width - 300;
+    this.enemyStatsText.x = width - 350;
     this.enemyStatsText.y = 20;
     this.uiLayer.addChild(this.enemyStatsText);
 
@@ -673,7 +673,7 @@ export class MainScene implements GameScene {
     const p = this.combatSystem.playerStats;
     const e = this.combatSystem.enemyStats;
     this.playerStatsText.text = `玩家 HP: ${p.hp}/${p.maxHp}\n防: ${p.defense}`;
-    this.enemyStatsText.text = `敌人 HP: ${e.hp}/${e.maxHp}\n防: ${e.defense}`;
+    this.enemyStatsText.text = `敌人 HP: ${e.hp}/${e.maxHp}\n防: ${e.defense}\n力量: ${e.attack}\n劲道: ${e.jingdao}`;
     this.turnText.text = `回合: ${this.combatSystem.turnCount}`;
 
     this.updatePowerJingdaoText();
@@ -695,7 +695,7 @@ export class MainScene implements GameScene {
       }
       if (this.uiLayer) {
         // Reposition UI
-        this.enemyStatsText.x = width - 300;
+        this.enemyStatsText.x = width - 350;
         this.turnText.x = width / 2;
         this.handContainer.x = width / 2;
         this.handContainer.y = height - 200;

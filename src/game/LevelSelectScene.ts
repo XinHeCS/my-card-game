@@ -75,7 +75,7 @@ export class LevelSelectScene implements GameScene {
         card.addChild(diffText);
 
         const statText = new Text({
-            text: `HP: ${level.stats.hp}\n攻击: ${level.stats.attack}\n防御: ${level.stats.defense}`,
+            text: `HP: ${level.stats.hp}\n防御: ${level.stats.defense}\n力量: ${level.stats.attack}\n劲道: ${level.stats.jingdao}`,
             style: { fontSize: 18, align: 'center' }
         });
         statText.anchor.set(0.5);
