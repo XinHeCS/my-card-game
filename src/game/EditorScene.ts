@@ -53,7 +53,7 @@ export class EditorScene implements GameScene {
 
     // Init Info Panel elements
     this.infoTitle = new Text({ text: '', style: { fill: '#ffff00', fontSize: 18, fontWeight: 'bold' } });
-    this.infoDesc = new Text({ text: '', style: { fill: 'white', fontSize: 14, wordWrap: true, wordWrapWidth: 200 } });
+    this.infoDesc = new Text({ text: '', style: { fill: 'white', fontSize: 14, wordWrap: true, wordWrapWidth: 230 } });
   }
 
   handleScroll(e: WheelEvent) {
@@ -337,14 +337,16 @@ export class EditorScene implements GameScene {
       }
       this.infoDesc.text = desc;
 
+      // Ensure layout is updated before measuring
+      this.infoDesc.y = this.infoTitle.y + this.infoTitle.height + 5;
+
       // Dynamic Background
       const bg = this.infoContainer.children[0] as Graphics;
       bg.clear();
-      const titleHeight = this.infoTitle.height;
-      const descHeight = this.infoDesc.height;
-      const totalHeight = 35 + descHeight + 10; // 35 is title top + margin, 10 padding bottom
+      const totalHeight = this.infoDesc.y + this.infoDesc.height + 10;
+      const width = 250;
 
-      bg.roundRect(0, 0, 220, totalHeight, 10);
+      bg.roundRect(0, 0, width, totalHeight, 10);
       bg.fill({ color: 0x000000, alpha: 0.9 });
       bg.stroke({ width: 1, color: 0xffff00 });
 
