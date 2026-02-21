@@ -10,6 +10,8 @@ export interface EnemyConfig {
   difficulty: string;
 }
 
+const STORAGE_KEY = 'VAG_PLAYGROUND_DATA_V1';
+
 export class GameData {
   private static instance: GameData;
 
@@ -47,16 +49,7 @@ export class GameData {
   ];
 
   private constructor() {
-    // Default Deck: Pick first 30 moves (or repeat base moves to fill 30)
-    // For now, let's just fill with random base moves up to 30
-    this.currentDeck = [];
-    while (this.currentDeck.length < 30) {
-        const randomMove = this.allMoves[Math.floor(Math.random() * this.allMoves.length)];
-        this.currentDeck.push(randomMove);
-    }
-
-    // Default Techniques: First 5
-    this.currentTechniques = this.allTechniques.slice(0, 5);
+    this.load();
   }
 
   public static getInstance(): GameData {
@@ -66,8 +59,58 @@ export class GameData {
     return GameData.instance;
   }
 
+  private load() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      try {
+        const data = JSON.parse(raw);
+        if (data.deckIds && Array.isArray(data.deckIds)) {
+            this.currentDeck = data.deckIds
+                .map((id: string) => this.allMoves.find(m => m.id === id))
+                .filter((m: MoveCard | undefined): m is MoveCard => !!m);
+        }
+        if (data.techIds && Array.isArray(data.techIds)) {
+            this.currentTechniques = data.techIds
+                .map((id: string) => this.allTechniques.find(t => t.id === id))
+                .filter((t: TechniqueCard | undefined): t is TechniqueCard => !!t);
+        }
+
+        // Basic validation: if load failed to produce valid deck, fallback
+        if (this.currentDeck.length === 0) {
+            console.warn('Loaded deck is empty or invalid, using default.');
+            this.createDefaultDeck();
+        }
+        return;
+      } catch (e) {
+        console.error('Failed to load game data:', e);
+      }
+    }
+
+    // Fallback: Default Deck
+    this.createDefaultDeck();
+  }
+
+  private createDefaultDeck() {
+    this.currentDeck = [];
+    while (this.currentDeck.length < 30) {
+        const randomMove = this.allMoves[Math.floor(Math.random() * this.allMoves.length)];
+        this.currentDeck.push(randomMove);
+    }
+    // Default Techniques: First 5
+    this.currentTechniques = this.allTechniques.slice(0, 5);
+  }
+
   public saveDeck(deck: MoveCard[], techniques: TechniqueCard[]) {
     this.currentDeck = [...deck];
     this.currentTechniques = [...techniques];
+    this.save();
+  }
+
+  private save() {
+      const data = {
+          deckIds: this.currentDeck.map(c => c.id),
+          techIds: this.currentTechniques.map(t => t.id)
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }
 }
