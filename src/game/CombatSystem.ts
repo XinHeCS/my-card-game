@@ -15,6 +15,10 @@ export class CombatSystem {
   turnCount: number = 0;
   log: string[] = [];
 
+  // Track max damage and combo
+  maxDamage: number = 0;
+  maxDamageCombo: MoveCard[] = [];
+
   constructor(initialDeck: MoveCard[], techniques: TechniqueCard[]) {
     this.drawPile = [...initialDeck]; // Deep copy ideally, but refs are ok for readonly data
     this.shuffleDeck();
@@ -130,7 +134,20 @@ export class CombatSystem {
     const actualDamage = Math.max(0, totalDamage - this.enemyStats.defense);
     this.enemyStats.hp = Math.max(0, this.enemyStats.hp - actualDamage);
 
+    // Track max damage
+    if (actualDamage > this.maxDamage) {
+        this.maxDamage = actualDamage;
+        this.maxDamageCombo = [...playedCards];
+    }
+
     this.log.push(`造成了 ${actualDamage} 点伤害！ (被格挡: ${Math.min(totalDamage, this.enemyStats.defense)})`);
+
+    // Check Win
+    if (this.enemyStats.hp <= 0) {
+        this.currentPhase = 'GameOver';
+        this.log.push('敌人被击败！你赢了！');
+        return;
+    }
 
     // 4. Enemy Turn (Simple AI for MVP)
     if (this.enemyStats.hp > 0) {
@@ -154,9 +171,17 @@ export class CombatSystem {
         msg += ` (护盾抵消了部分伤害)`;
     }
     this.log.push(msg);
+
+    // Check Lose
+    if (this.playerStats.hp <= 0) {
+        this.currentPhase = 'GameOver';
+        this.log.push('你被击败了...');
+    }
   }
 
   endTurnCheck() {
+    if (this.currentPhase === 'GameOver') return;
+
     if (this.hand.length > 7) {
         this.currentPhase = 'Discard';
         this.log.push(`手牌过多，请选择 ${this.hand.length - 7} 张牌丢弃。`);

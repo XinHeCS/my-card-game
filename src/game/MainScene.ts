@@ -5,6 +5,7 @@ import { CombatSystem } from './CombatSystem';
 import { GameData, EnemyConfig } from './GameData';
 import { getAudioSystem, AudioSystem } from '../audio/AudioSystem';
 import { LevelSelectScene } from './LevelSelectScene';
+import { ResultScene, GameResult } from './ResultScene';
 
 export class MainScene implements GameScene {
   public world: World;
@@ -441,6 +442,20 @@ export class MainScene implements GameScene {
   }
 
   checkPhaseTransition() {
+      if (this.combatSystem.currentPhase === 'GameOver') {
+          setTimeout(() => {
+              const isWin = this.combatSystem.enemyStats.hp <= 0;
+              const resultData: GameResult = {
+                  isWin: isWin,
+                  maxDamage: this.combatSystem.maxDamage,
+                  maxDamageCombo: this.combatSystem.maxDamageCombo,
+                  equippedTechniques: this.combatSystem.equippedTechniques
+              };
+              this.engine.setScene(new ResultScene(this.engine, resultData));
+          }, 1500);
+          return;
+      }
+
       if (this.combatSystem.currentPhase === 'End') {
           setTimeout(() => {
               this.combatSystem.startTurn();

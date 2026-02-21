@@ -32,4 +32,4 @@ export interface PlayerStats {
   jingdao: number; // 劲道 (Internal Force/Power)
 }
 
-export type GamePhase = 'Preparation' | 'Action' | 'Resolution' | 'Discard' | 'End';
+export type GamePhase = 'Preparation' | 'Action' | 'Resolution' | 'Discard' | 'End' | 'GameOver';
