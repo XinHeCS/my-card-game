@@ -4,6 +4,7 @@ import { World } from '../engine/World';
 import { CombatSystem } from './CombatSystem';
 import { GameData, EnemyConfig } from './GameData';
 import { getAudioSystem, AudioSystem } from '../audio/AudioSystem';
+import { LevelSelectScene } from './LevelSelectScene';
 
 export class MainScene implements GameScene {
   public world: World;
@@ -170,6 +171,7 @@ export class MainScene implements GameScene {
 
     // Buttons
     this.createButtons(width, height);
+    this.createExitButton(width);
   }
 
   renderTechniques() {
@@ -227,6 +229,38 @@ export class MainScene implements GameScene {
       container.y = index * spacing;
       this.techniqueContainer.addChild(container);
     });
+  }
+
+  createExitButton(width: number) {
+      const btn = new Container();
+      const w = 80;
+      const h = 40;
+
+      const bg = new Graphics();
+      bg.roundRect(0, 0, w, h, 8);
+      bg.fill(0xFF4444);
+      bg.stroke({ width: 2, color: 0xFFFFFF });
+      btn.addChild(bg);
+
+      const text = new Text({ text: '退出', style: { fontFamily: 'Arial', fontSize: 18, fill: 'white' } });
+      text.anchor.set(0.5);
+      text.x = w / 2;
+      text.y = h / 2;
+      btn.addChild(text);
+
+      btn.x = width - w - 20;
+      btn.y = 20;
+
+      btn.eventMode = 'static';
+      btn.cursor = 'pointer';
+      btn.on('pointerdown', () => this.exitLevel());
+
+      this.uiLayer.addChild(btn);
+  }
+
+  exitLevel() {
+      this.audio.play('click');
+      this.engine.setScene(new LevelSelectScene(this.engine));
   }
 
   createButtons(width: number, height: number) {
