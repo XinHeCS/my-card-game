@@ -102,13 +102,16 @@ export class MainScene implements GameScene {
     } catch (e) {
         console.error("Failed to load assets", e);
         // Fallback
-        this.background = Sprite.from('white');
-        this.playerSprite = Sprite.from('green');
+        this.background = new Sprite(Texture.WHITE);
         this.background.tint = 0x000000;
+
+        this.playerSprite = new Sprite(Texture.WHITE);
+        this.playerSprite.tint = 0x00FF00;
 
         this.enemySprites = [];
         for (let enemy of this.combatSystem.enemies) {
-            const sprite = Sprite.from('red');
+            const sprite = new Sprite(Texture.WHITE);
+            sprite.tint = 0xFF0000;
             sprite.width = 100;
             sprite.height = 100;
             this.enemySprites.push(sprite);
@@ -782,7 +785,7 @@ export class MainScene implements GameScene {
           this.background.width = width;
           this.background.height = height;
       }
-      if (this.uiLayer) {
+      if (this.uiLayer && this.turnText && this.playButton) {
         // Reposition UI
         this.turnText.x = width / 2;
         this.handContainer.x = width / 2;
