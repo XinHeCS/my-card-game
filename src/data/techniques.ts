@@ -10,7 +10,7 @@ export const TECHNIQUES: TechniqueCard[] = [
     triggerCondition: (playedCards: MoveCard[]) => {
       return playedCards.filter(c => c.weight === 'Block').length >= 2;
     },
-    effect: (player, enemy, damage) => {
+    effect: (player, enemy, damage, playedCards) => {
       player.defense += 5;
       return { player, enemy, damage, message: '铁布衫发动！防御+5' };
     }
@@ -24,7 +24,7 @@ export const TECHNIQUES: TechniqueCard[] = [
     triggerCondition: (playedCards: MoveCard[]) => {
       return playedCards.length > 0 && playedCards.every(c => c.weapon === 'Fist');
     },
-    effect: (player, enemy, damage) => {
+    effect: (player, enemy, damage, playedCards) => {
       return { player, enemy, damage: damage * 2, message: '百裂拳！双倍伤害！' };
     }
   },
@@ -35,7 +35,7 @@ export const TECHNIQUES: TechniqueCard[] = [
     description: '回复造成伤害的10%生命值。',
     type: 'Passive',
     triggerCondition: () => true, // Always triggers on hit
-    effect: (player, enemy, damage) => {
+    effect: (player, enemy, damage, playedCards) => {
       const heal = Math.floor(damage * 0.1);
       player.hp = Math.min(player.hp + heal, player.maxHp);
       return { player, enemy, damage, message: `嗜血功：回复 ${heal} 生命` };
@@ -50,15 +50,11 @@ export const TECHNIQUES: TechniqueCard[] = [
     triggerCondition: (playedCards: MoveCard[]) => {
       return playedCards.some(c => c.weapon === 'Sword');
     },
-    effect: (player, enemy, damage) => {
-       const swordCount = player.hand ? 0 : 0; // Hand context not directly available here in effect cleanly without changing signature.
-       // Wait, triggerCondition gets playedCards, but effect only gets damage.
-       // Let's change how effect works or just count from playedCards?
-       // The signature is: effect: (player: PlayerStats, enemy: PlayerStats, damage: number) => ...
-       // I can't access playedCards here! This is an architectural issue.
-       return { player, enemy, damage, message: '剑意共鸣！' };
+    effect: (player, enemy, damage, playedCards) => {
+       const swordCount = playedCards.filter(c => c.weapon === 'Sword').length;
+       return { player, enemy, damage: damage + swordCount * 2, message: '剑意共鸣！攻击力增加' };
     }
-  }
+  },
   {
     id: 'heavy-hand',
     name: '大力金刚掌',
@@ -68,7 +64,7 @@ export const TECHNIQUES: TechniqueCard[] = [
     triggerCondition: (playedCards: MoveCard[]) => {
       return playedCards.some(c => c.weight === 'Heavy');
     },
-    effect: (player, enemy, damage) => {
+    effect: (player, enemy, damage, playedCards) => {
       return { player, enemy, damage: damage + 5, message: '大力金刚掌！无视防御！' };
     }
   }

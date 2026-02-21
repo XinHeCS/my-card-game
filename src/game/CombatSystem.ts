@@ -102,18 +102,17 @@ export class CombatSystem {
     let cardDef = playedCards.reduce((sum, card) => sum + (card.def || 0), 0);
     let cardJingdao = playedCards.reduce((sum, card) => sum + (card.jingdao || 0), 0);
 
-    // Damage Formula: (Player Attack + Card Power) * max(1, Total Jingdao)
+    // Damage Formula: (Player Attack + Card Power) * Total Jingdao
     // Player Attack/Jingdao are reset to 0 at startTurn, so they are base 0 unless buffs.
-    // Use max(1, ...) so physical attacks without charge still deal base damage.
     let totalPower = this.playerStats.attack + cardPower;
     let totalJingdao = this.playerStats.jingdao + cardJingdao;
-    let totalDamage = totalPower * Math.max(1, totalJingdao);
+    let totalDamage = totalPower * totalJingdao;
 
     // 2. Trigger Techniques
     // "当玩家打出特定的招式牌组合时，功法牌会自动提供增益效果"
     this.equippedTechniques.forEach(tech => {
       if (tech.triggerCondition(playedCards)) {
-        const result = tech.effect(this.playerStats, this.enemyStats, totalDamage);
+        const result = tech.effect(this.playerStats, this.enemyStats, totalDamage, playedCards);
         this.playerStats = result.player;
         this.enemyStats = result.enemy;
         totalDamage = result.damage;
