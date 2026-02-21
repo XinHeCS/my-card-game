@@ -139,6 +139,9 @@ export class EditorScene implements GameScene {
 
     // Lists
     this.renderLists();
+
+    // Ensure Info Panel is on top
+    this.container.addChild(this.infoContainer);
   }
 
   setupInfoPanel(w: number) {
@@ -272,9 +275,15 @@ export class EditorScene implements GameScene {
   createItemRow(item: any, isRemove: boolean) {
     const row = new Container();
     const bg = new Graphics();
-    bg.rect(0, 0, 400, 35);
-    bg.fill({ color: 0x333333, alpha: 0.8 });
-    bg.stroke({ width: 1, color: 'gray' });
+
+    const drawBg = (color: any, alpha: number) => {
+        bg.clear();
+        bg.rect(0, 0, 400, 35);
+        bg.fill({ color, alpha });
+        bg.stroke({ width: 1, color: 'gray' });
+    };
+
+    drawBg(0x333333, 0.8);
     row.addChild(bg);
 
     // Icon + Name
@@ -306,11 +315,11 @@ export class EditorScene implements GameScene {
 
     // Hover for info
     row.on('pointerenter', () => {
-        bg.fill({ color: 0x555555, alpha: 0.9 });
+        drawBg(0x555555, 0.9);
         this.showInfo(item);
     });
     row.on('pointerleave', () => {
-        bg.fill({ color: 0x333333, alpha: 0.8 });
+        drawBg(0x333333, 0.8);
         this.hideInfo();
     });
 
