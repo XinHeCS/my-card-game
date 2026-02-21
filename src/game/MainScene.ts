@@ -620,11 +620,7 @@ export class MainScene implements GameScene {
         this.selectedCardIndices.clear();
         this.renderHand(); // Render empty selection
 
-        if (indices.length === 0) {
-            await this.combatSystem.endPlayerTurn(hooks);
-        } else {
-            await this.combatSystem.playTurn(indices, hooks);
-        }
+        await this.combatSystem.playTurn(indices, hooks);
 
         this.playButton.visible = true;
         this.updateUI();
