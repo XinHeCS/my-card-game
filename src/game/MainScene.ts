@@ -218,8 +218,15 @@ export class MainScene implements GameScene {
     this.turnText.y = 20;
     this.uiLayer.addChild(this.turnText);
 
-    // Explicitly update UI texts to show initial stats properly
-    this.updateUI();
+    // Power X Jingdao display
+    this.powerJingdaoText = new Text({
+        text: '【力量: 0  X  劲道: 0】',
+        style: { fill: '#ffaa00', fontSize: 36, fontWeight: 'bold', stroke: {color: '#000000', width: 4} }
+    });
+    this.powerJingdaoText.anchor.set(0.5);
+    this.powerJingdaoText.x = width / 2;
+    this.powerJingdaoText.y = height / 2 - 50;
+    this.uiLayer.addChild(this.powerJingdaoText);
 
     // Log
     const logStyle = new TextStyle({
@@ -235,16 +242,6 @@ export class MainScene implements GameScene {
     this.logText.y = 100;
     this.uiLayer.addChild(this.logText);
 
-    // Power X Jingdao display
-    this.powerJingdaoText = new Text({
-        text: '【力量: 0  X  劲道: 0】',
-        style: { fill: '#ffaa00', fontSize: 36, fontWeight: 'bold', stroke: {color: '#000000', width: 4} }
-    });
-    this.powerJingdaoText.anchor.set(0.5);
-    this.powerJingdaoText.x = width / 2;
-    this.powerJingdaoText.y = height / 2 - 50;
-    this.uiLayer.addChild(this.powerJingdaoText);
-
     // Hand Container
     this.handContainer.y = height - 200;
     this.handContainer.x = width / 2;
@@ -256,6 +253,9 @@ export class MainScene implements GameScene {
     // Buttons
     this.createButtons(width, height);
     this.createExitButton(width);
+
+    // Explicitly update UI texts to show initial stats properly
+    this.updateUI();
   }
 
   renderTechniques() {
