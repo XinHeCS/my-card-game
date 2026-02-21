@@ -438,14 +438,11 @@ export class EditorScene implements GameScene {
   }
 
   saveAndExit() {
-    if (this.tempDeck.length < 30) {
-        alert('招式牌必须凑齐30张！');
+    if (this.tempDeck.length !== 30) {
+        alert('招式牌必须正好30张！');
         return;
     }
-    if (this.tempTechs.length !== 5) {
-        alert('功法牌必须正好5张！');
-        return;
-    }
+    // No check for techniques count
 
     GameData.getInstance().saveDeck(this.tempDeck, this.tempTechs);
     getAudioSystem().play('click');
