@@ -439,7 +439,7 @@ export class EditorScene implements GameScene {
 
   saveAndExit() {
     if (this.tempDeck.length !== 30) {
-        alert('招式牌必须正好30张！');
+        this.showToast('招式牌必须正好30张！');
         return;
     }
     // No check for techniques count
@@ -447,6 +447,46 @@ export class EditorScene implements GameScene {
     GameData.getInstance().saveDeck(this.tempDeck, this.tempTechs);
     getAudioSystem().play('click');
     this.engine.setScene(new TitleScene(this.engine));
+  }
+
+  showToast(message: string) {
+      const w = this.engine.app.renderer.width;
+      const h = this.engine.app.renderer.height;
+
+      const toast = new Container();
+      const bg = new Graphics();
+      const text = new Text({ text: message, style: { fill: 'white', fontSize: 24, fontWeight: 'bold' } });
+
+      const padding = 20;
+      bg.roundRect(0, 0, text.width + padding * 2, text.height + padding * 2, 10);
+      bg.fill({ color: 0x000000, alpha: 0.8 });
+      bg.stroke({ width: 2, color: 0xff0000 });
+
+      text.position.set(padding, padding);
+      toast.addChild(bg);
+      toast.addChild(text);
+
+      toast.position.set((w - toast.width) / 2, h / 2 - 50);
+      this.container.addChild(toast);
+
+      // Simple animation
+      let elapsed = 0;
+      const duration = 2.0;
+
+      const tickerFn = (ticker: any) => {
+          elapsed += ticker.deltaMS / 1000;
+          toast.y -= 0.5; // Float up slightly
+
+          if (elapsed > 1.5) {
+              toast.alpha = 1 - (elapsed - 1.5) * 2;
+          }
+
+          if (elapsed >= duration) {
+              this.engine.app.ticker.remove(tickerFn);
+              toast.destroy();
+          }
+      };
+      this.engine.app.ticker.add(tickerFn);
   }
 
   exitWithoutSave() {
