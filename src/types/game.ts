@@ -20,7 +20,7 @@ export interface TechniqueCard {
   icon: string;
   description: string;
   triggerCondition: (playedCards: MoveCard[]) => boolean;
-  effect: (player: PlayerStats, enemy: PlayerStats, damage: number) => { player: PlayerStats, enemy: PlayerStats, damage: number, message?: string };
+  effect: (player: PlayerStats, enemy: PlayerStats, damage: number, playedCards: MoveCard[]) => { player: PlayerStats, enemy: PlayerStats, damage: number, message?: string };
   type: 'Passive' | 'Triggered';
 }
 

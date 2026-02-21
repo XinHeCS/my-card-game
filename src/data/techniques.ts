@@ -51,10 +51,14 @@ export const TECHNIQUES: TechniqueCard[] = [
       return playedCards.some(c => c.weapon === 'Sword');
     },
     effect: (player, enemy, damage) => {
-       // Logic handled in calculation, but here we can return a message or temp buff
+       const swordCount = player.hand ? 0 : 0; // Hand context not directly available here in effect cleanly without changing signature.
+       // Wait, triggerCondition gets playedCards, but effect only gets damage.
+       // Let's change how effect works or just count from playedCards?
+       // The signature is: effect: (player: PlayerStats, enemy: PlayerStats, damage: number) => ...
+       // I can't access playedCards here! This is an architectural issue.
        return { player, enemy, damage, message: '剑意共鸣！' };
     }
-  },
+  }
   {
     id: 'heavy-hand',
     name: '大力金刚掌',
