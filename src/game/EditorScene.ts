@@ -52,8 +52,8 @@ export class EditorScene implements GameScene {
     window.addEventListener('wheel', this.scrollListener);
 
     // Init Info Panel elements
-    this.infoTitle = new Text({ text: '', style: { fill: '#ffff00', fontSize: 24, fontWeight: 'bold' } });
-    this.infoDesc = new Text({ text: '', style: { fill: 'white', fontSize: 18, wordWrap: true, wordWrapWidth: 280 } });
+    this.infoTitle = new Text({ text: '', style: { fill: '#ffff00', fontSize: 18, fontWeight: 'bold' } });
+    this.infoDesc = new Text({ text: '', style: { fill: 'white', fontSize: 14, wordWrap: true, wordWrapWidth: 200 } });
   }
 
   handleScroll(e: WheelEvent) {
@@ -147,19 +147,17 @@ export class EditorScene implements GameScene {
   setupInfoPanel(w: number) {
       this.infoContainer.removeChildren();
       const bg = new Graphics();
-      bg.roundRect(0, 0, 300, 120, 10);
-      bg.fill({ color: 0x000000, alpha: 0.8 });
-      bg.stroke({ width: 2, color: 0xffff00 });
+      bg.roundRect(0, 0, 220, 100, 10);
+      bg.fill({ color: 0x000000, alpha: 0.9 });
+      bg.stroke({ width: 1, color: 0xffff00 });
       this.infoContainer.addChild(bg);
 
       this.infoTitle.position.set(10, 10);
-      this.infoDesc.position.set(10, 45);
+      this.infoDesc.position.set(10, 35);
+
       this.infoContainer.addChild(this.infoTitle);
       this.infoContainer.addChild(this.infoDesc);
 
-      // Position: Top Right, below Save button
-      this.infoContainer.x = w - 320;
-      this.infoContainer.y = 80;
       this.infoContainer.visible = false;
       this.container.addChild(this.infoContainer);
   }
@@ -271,7 +269,6 @@ export class EditorScene implements GameScene {
     this.rightListContainer.y = 140 + this.rightScrollY;
   }
 
-
   createItemRow(item: any, isRemove: boolean) {
     const row = new Container();
     const bg = new Graphics();
@@ -293,7 +290,7 @@ export class EditorScene implements GameScene {
     name.y = 8;
     row.addChild(name);
 
-    // Count (only for pool view, show how many we have in deck)
+    // Count
     if (!isRemove && this.currentTab === 'Moves') {
         const count = this.tempDeck.filter(c => c.id === item.id).length;
         const limitText = new Text({ text: `${count}/3`, style: { fill: count >= 3 ? 'red' : 'gray', fontSize: 14 } });
@@ -314,9 +311,14 @@ export class EditorScene implements GameScene {
     row.cursor = 'pointer';
 
     // Hover for info
-    row.on('pointerenter', () => {
+    row.on('pointerenter', (e) => {
         drawBg(0x555555, 0.9);
-        this.showInfo(item);
+        this.showInfo(item, e.global.x, e.global.y);
+    });
+    row.on('pointermove', (e) => {
+        if (this.infoContainer.visible) {
+            this.updateInfoPosition(e.global.x, e.global.y);
+        }
     });
     row.on('pointerleave', () => {
         drawBg(0x333333, 0.8);
@@ -326,7 +328,7 @@ export class EditorScene implements GameScene {
     return row;
   }
 
-  showInfo(item: any) {
+  showInfo(item: any, x: number, y: number) {
       this.infoTitle.text = `${item.icon} ${item.name}`;
       let desc = item.description;
       if (item.power !== undefined) {
@@ -336,7 +338,31 @@ export class EditorScene implements GameScene {
           desc += `  格挡: ${item.def}`;
       }
       this.infoDesc.text = desc;
+      this.updateInfoPosition(x, y);
       this.infoContainer.visible = true;
+      // Bring to front
+      this.container.setChildIndex(this.infoContainer, this.container.children.length - 1);
+  }
+
+  updateInfoPosition(x: number, y: number) {
+      // Offset from cursor
+      let posX = x + 15;
+      let posY = y + 15;
+
+      // Boundary check (keep inside screen)
+      const bounds = this.infoContainer.getBounds();
+      const screenW = this.engine.app.renderer.width;
+      const screenH = this.engine.app.renderer.height;
+
+      if (posX + bounds.width > screenW) {
+          posX = x - bounds.width - 15;
+      }
+      if (posY + bounds.height > screenH) {
+          posY = y - bounds.height - 15;
+      }
+
+      this.infoContainer.x = posX;
+      this.infoContainer.y = posY;
   }
 
   hideInfo() {
@@ -347,13 +373,12 @@ export class EditorScene implements GameScene {
     if (this.currentTab === 'Moves') {
         const count = this.tempDeck.filter(c => c.id === item.id).length;
         if (count >= 3) {
-            // Can add animation or sound for error
             return;
         }
 
         if (this.tempDeck.length < 30) {
             this.tempDeck.push(item);
-            this.renderLists(); // Efficient re-render needed? For now full re-render lists
+            this.renderLists();
         }
     } else {
         if (this.tempTechs.length < 5 && !this.tempTechs.find(t => t.id === item.id)) {
