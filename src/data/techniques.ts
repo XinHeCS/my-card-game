@@ -52,7 +52,8 @@ export const TECHNIQUES: TechniqueCard[] = [
     },
     effect: (player, enemy, damage, playedCards) => {
        const swordCount = playedCards.filter(c => c.weapon === 'Sword').length;
-       return { player, enemy, damage: damage + swordCount * 2, message: '剑意共鸣！攻击力增加' };
+       // 攻击力+2 转化为伤害：增加的攻击力 * 当前总劲道
+       return { player, enemy, damage: damage + (swordCount * 2) * player.jingdao, message: '剑意共鸣！攻击力增加' };
     }
   },
   {

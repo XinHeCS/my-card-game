@@ -102,11 +102,12 @@ export class CombatSystem {
     let cardDef = playedCards.reduce((sum, card) => sum + (card.def || 0), 0);
     let cardJingdao = playedCards.reduce((sum, card) => sum + (card.jingdao || 0), 0);
 
-    // Damage Formula: (Player Attack + Card Power) * Total Jingdao
-    // Player Attack/Jingdao are reset to 0 at startTurn, so they are base 0 unless buffs.
-    let totalPower = this.playerStats.attack + cardPower;
-    let totalJingdao = this.playerStats.jingdao + cardJingdao;
-    let totalDamage = totalPower * totalJingdao;
+    // Apply card stats to player for this resolution so techniques can read them
+    this.playerStats.attack += cardPower;
+    this.playerStats.jingdao += cardJingdao;
+
+    // Initial damage calculation
+    let totalDamage = this.playerStats.attack * this.playerStats.jingdao;
 
     // 2. Trigger Techniques
     // "当玩家打出特定的招式牌组合时，功法牌会自动提供增益效果"
