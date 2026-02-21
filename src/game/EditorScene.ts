@@ -131,6 +131,24 @@ export class EditorScene implements GameScene {
     saveBtn.on('pointerdown', () => this.saveAndExit());
     this.container.addChild(saveBtn);
 
+    // Cancel Button
+    const cancelBtn = new Container();
+    const cancelBg = new Graphics();
+    cancelBg.roundRect(0, 0, 100, 50, 10);
+    cancelBg.fill(0xFF4444); // Reddish for cancel
+    cancelBtn.addChild(cancelBg);
+    const cancelText = new Text({ text: '返回', style: { fontSize: 20, fill: 'white' } });
+    cancelText.anchor.set(0.5);
+    cancelText.x = 50;
+    cancelText.y = 25;
+    cancelBtn.addChild(cancelText);
+    cancelBtn.x = w - 290; // Position left of save button
+    cancelBtn.y = 20;
+    cancelBtn.eventMode = 'static';
+    cancelBtn.cursor = 'pointer';
+    cancelBtn.on('pointerdown', () => this.exitWithoutSave());
+    this.container.addChild(cancelBtn);
+
     // Info Panel
     this.setupInfoPanel(w);
 
@@ -420,6 +438,11 @@ export class EditorScene implements GameScene {
     }
 
     GameData.getInstance().saveDeck(this.tempDeck, this.tempTechs);
+    getAudioSystem().play('click');
+    this.engine.setScene(new TitleScene(this.engine));
+  }
+
+  exitWithoutSave() {
     getAudioSystem().play('click');
     this.engine.setScene(new TitleScene(this.engine));
   }
