@@ -78,6 +78,7 @@ export class MainScene implements GameScene {
         const playerTexture = await Assets.load('images/player.png');
         this.playerSprite = Sprite.from(playerTexture);
 
+        this.enemySprites = [];
         for (let enemy of this.combatSystem.enemies) {
             const enemyTexture = await Assets.load(enemy.spritePath);
             this.enemySprites.push(Sprite.from(enemyTexture));
@@ -92,6 +93,7 @@ export class MainScene implements GameScene {
         this.playerSprite = Sprite.from('green');
         this.background.tint = 0x000000;
 
+        this.enemySprites = [];
         for (let enemy of this.combatSystem.enemies) {
             this.enemySprites.push(Sprite.from('red'));
         }
