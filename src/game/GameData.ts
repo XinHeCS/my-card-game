@@ -35,7 +35,7 @@ export class GameData {
     {
       id: 'rogue_monk',
       name: '赛博妖僧',
-      stats: { hp: 100, maxHp: 100, attack: 8, defense: 3, jingdao: 1 },
+      stats: { hp: 100, maxHp: 100, attack: 4, defense: 3, jingdao: 4 },
       spritePath: 'images/enemy.png',
       difficulty: '普通'
     },
