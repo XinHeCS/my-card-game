@@ -59,6 +59,7 @@ export class CombatSystem {
     // Reset stats per turn
     this.playerStats.attack = 0;
     this.playerStats.defense = 0;
+    this.playerStats.jingdao = 0;
 
     // Rule: Fill hand to 7 cards
     const cardsToDraw = 7 - this.hand.length;
@@ -99,11 +100,13 @@ export class CombatSystem {
     // 1. Calculate Base Stats from Cards
     let cardPower = playedCards.reduce((sum, card) => sum + card.power, 0);
     let cardDef = playedCards.reduce((sum, card) => sum + (card.def || 0), 0);
+    let cardJingdao = playedCards.reduce((sum, card) => sum + (card.jingdao || 0), 0);
 
-    // Damage Formula: (Player Attack + Card Power) * Jingdao
-    // Assuming Jingdao is a multiplier (default 1). If user meant flat value, adjust here.
-    // Prompt said: "Power X Jingdao". Let's stick to (Atk + CardPower) * Jingdao
-    let totalDamage = (this.playerStats.attack + cardPower) * this.playerStats.jingdao;
+    // Damage Formula: (Player Attack + Card Power) * Total Jingdao
+    // Player Attack/Jingdao are reset to 0 at startTurn, so they are base 0 unless buffs.
+    let totalPower = this.playerStats.attack + cardPower;
+    let totalJingdao = this.playerStats.jingdao + cardJingdao;
+    let totalDamage = totalPower * totalJingdao;
 
     // 2. Trigger Techniques
     // "当玩家打出特定的招式牌组合时，功法牌会自动提供增益效果"

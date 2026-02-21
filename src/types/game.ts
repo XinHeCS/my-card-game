@@ -10,6 +10,7 @@ export interface MoveCard {
   description: string;
   power: number; // Attack bonus
   def?: number; // Defense bonus
+  jingdao?: number; // Jingdao bonus
   cost: number;
 }
 
