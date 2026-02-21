@@ -1,6 +1,13 @@
 import { MoveCard, TechniqueCard, PlayerStats, GamePhase } from '../types/game';
 import { BASE_MOVES } from '../data/moves';
 
+export interface CombatHooks {
+  onCardPlay?: (card: MoveCard, index: number) => Promise<void>;
+  onTechTrigger?: (tech: TechniqueCard, result: any, diffs: any) => Promise<void>;
+  onPlayerAttack?: (damage: number, actualDamage: number) => Promise<void>;
+  onEnemyAttack?: (damage: number, actualDamage: number) => Promise<void>;
+}
+
 export class CombatSystem {
   drawPile: MoveCard[] = [];
   hand: MoveCard[] = [];
@@ -75,7 +82,7 @@ export class CombatSystem {
     this.currentPhase = 'Action';
   }
 
-  playTurn(selectedCardIndices: number[]) {
+  async playTurn(selectedCardIndices: number[], hooks?: CombatHooks) {
     if (this.currentPhase !== 'Action') return;
 
     // Rule: Can play 0 to 5 cards
@@ -95,7 +102,7 @@ export class CombatSystem {
       this.hand.splice(i, 1);
     });
 
-    this.resolveCombat(playedCards);
+    await this.resolveCombat(playedCards, hooks);
 
     // Discard played cards
     this.discardPile.push(...playedCards);
@@ -103,32 +110,51 @@ export class CombatSystem {
     this.endTurnCheck();
   }
 
-  resolveCombat(playedCards: MoveCard[]) {
+  async resolveCombat(playedCards: MoveCard[], hooks?: CombatHooks) {
     this.currentPhase = 'Resolution';
 
-    // 1. Calculate Base Stats from Cards
-    let cardPower = playedCards.reduce((sum, card) => sum + card.power, 0);
-    let cardDef = playedCards.reduce((sum, card) => sum + (card.def || 0), 0);
-    let cardJingdao = playedCards.reduce((sum, card) => sum + (card.jingdao || 0), 0);
+    // 1. Process Cards one by one for animation
+    for (let i = 0; i < playedCards.length; i++) {
+        const card = playedCards[i];
+        this.playerStats.attack += (card.power || 0);
+        this.playerStats.jingdao += (card.jingdao || 0);
+        this.playerStats.defense += (card.def || 0);
+        if (hooks && hooks.onCardPlay) {
+            await hooks.onCardPlay(card, i);
+        }
+    }
 
-    // Apply card stats to player for this resolution so techniques can read them
-    this.playerStats.attack += cardPower;
-    this.playerStats.jingdao += cardJingdao;
+    let cardDef = playedCards.reduce((sum, card) => sum + (card.def || 0), 0);
 
     // Initial damage calculation
     let totalDamage = this.playerStats.attack * this.playerStats.jingdao;
 
-    // 2. Trigger Techniques
-    // "当玩家打出特定的招式牌组合时，功法牌会自动提供增益效果"
-    this.equippedTechniques.forEach(tech => {
+    // 2. Trigger Techniques sequentially
+    for (let tech of this.equippedTechniques) {
       if (tech.triggerCondition(playedCards)) {
+        const oldAtk = this.playerStats.attack;
+        const oldJing = this.playerStats.jingdao;
+        const oldDef = this.playerStats.defense;
+
         const result = tech.effect(this.playerStats, this.enemyStats, totalDamage, playedCards);
         this.playerStats = result.player;
         this.enemyStats = result.enemy;
+
+        const diffs = {
+            atkDiff: this.playerStats.attack - oldAtk,
+            jingDiff: this.playerStats.jingdao - oldJing,
+            defDiff: this.playerStats.defense - oldDef,
+            dmgDiff: result.damage - totalDamage
+        };
+
         totalDamage = result.damage;
         if (result.message) this.log.push(result.message);
+
+        if (hooks && hooks.onTechTrigger) {
+            await hooks.onTechTrigger(tech, result, diffs);
+        }
       }
-    });
+    }
 
     // 3. Apply Damage to Enemy
     const actualDamage = Math.max(0, totalDamage - this.enemyStats.defense);
@@ -142,6 +168,10 @@ export class CombatSystem {
 
     this.log.push(`造成了 ${actualDamage} 点伤害！ (被格挡: ${Math.min(totalDamage, this.enemyStats.defense)})`);
 
+    if (hooks && hooks.onPlayerAttack) {
+        await hooks.onPlayerAttack(totalDamage, actualDamage);
+    }
+
     // Check Win
     if (this.enemyStats.hp <= 0) {
         this.currentPhase = 'GameOver';
@@ -149,28 +179,32 @@ export class CombatSystem {
         return;
     }
 
-    // 4. Enemy Turn (Simple AI for MVP)
+    // 4. Enemy Turn
     if (this.enemyStats.hp > 0) {
-      // Pass temporary defense bonus (Shield) from cards
-      this.enemyTurn(cardDef);
+      await this.enemyTurn(cardDef, hooks);
     }
   }
 
-  enemyTurn(bonusDef: number = 0) {
+  async enemyTurn(bonusDef: number = 0, hooks?: CombatHooks) {
     // Simple Enemy Logic: Attack for base damage
     const enemyDmg = this.enemyStats.attack * this.enemyStats.jingdao;
 
     // Total Player Defense = Base Defense + Bonus Defense from cards (Shield)
-    const totalPlayerDef = this.playerStats.defense + bonusDef;
+    const totalPlayerDef = this.playerStats.defense; // Note: playerStats.defense already includes bonusDef from card loop!
+    // But wait, what if techniques added more defense? It's all in playerStats.defense now.
 
     const actualDmg = Math.max(0, enemyDmg - totalPlayerDef);
     this.playerStats.hp = Math.max(0, this.playerStats.hp - actualDmg);
 
     let msg = `敌人攻击！受到了 ${actualDmg} 点伤害。`;
-    if (bonusDef > 0) {
+    if (totalPlayerDef > 0) {
         msg += ` (护盾抵消了部分伤害)`;
     }
     this.log.push(msg);
+
+    if (hooks && hooks.onEnemyAttack) {
+        await hooks.onEnemyAttack(enemyDmg, actualDmg);
+    }
 
     // Check Lose
     if (this.playerStats.hp <= 0) {

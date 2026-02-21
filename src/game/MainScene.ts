@@ -6,6 +6,7 @@ import { GameData, EnemyConfig } from './GameData';
 import { getAudioSystem, AudioSystem } from '../audio/AudioSystem';
 import { LevelSelectScene } from './LevelSelectScene';
 import { ResultScene, GameResult } from './ResultScene';
+import { MoveCard, TechniqueCard } from '../types/game';
 
 export class MainScene implements GameScene {
   public world: World;
@@ -32,10 +33,13 @@ export class MainScene implements GameScene {
   private playerStatsText!: Text;
   private enemyStatsText!: Text;
   private turnText!: Text;
+  private powerJingdaoText!: Text;
 
   // Interactive
   private selectedCardIndices: Set<number> = new Set();
   private playButton!: Container;
+
+  private draggingCard: { index: number, startX: number, startY: number, pointerId: number } | null = null;
 
   constructor(engine: Engine, enemyConfig?: EnemyConfig) {
     this.engine = engine;
@@ -162,6 +166,16 @@ export class MainScene implements GameScene {
     this.logText.y = 100;
     this.uiLayer.addChild(this.logText);
 
+    // Power X Jingdao display
+    this.powerJingdaoText = new Text({
+        text: '【力量: 0  X  劲道: 0】',
+        style: { fill: '#ffaa00', fontSize: 36, fontWeight: 'bold', stroke: {color: '#000000', width: 4} }
+    });
+    this.powerJingdaoText.anchor.set(0.5);
+    this.powerJingdaoText.x = width / 2;
+    this.powerJingdaoText.y = height / 2 - 50;
+    this.uiLayer.addChild(this.powerJingdaoText);
+
     // Hand Container
     this.handContainer.y = height - 200;
     this.handContainer.x = width / 2;
@@ -264,6 +278,64 @@ export class MainScene implements GameScene {
       this.engine.setScene(new LevelSelectScene(this.engine));
   }
 
+  sleep(ms: number): Promise<void> {
+      return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  spawnFloatingText(x: number, y: number, text: string, color: string = '#ffffff') {
+      const ft = new Text({ text, style: { fill: color, fontSize: 24, fontWeight: 'bold', stroke: {color: '#000000', width: 4} } });
+      ft.anchor.set(0.5);
+      ft.x = x;
+      ft.y = y;
+      this.uiLayer.addChild(ft);
+
+      let elapsed = 0;
+      const duration = 1.0;
+      const speed = 60;
+
+      const tickerFn = (ticker: any) => {
+          const dt = ticker.deltaMS / 1000;
+          elapsed += dt;
+          ft.y -= speed * dt;
+          ft.alpha = 1 - (elapsed / duration);
+          if (elapsed >= duration) {
+              this.engine.app.ticker.remove(tickerFn);
+              ft.destroy();
+          }
+      };
+      this.engine.app.ticker.add(tickerFn);
+  }
+
+  animateProjectile(startX: number, startY: number, endX: number, endY: number, color: number = 0xffaa00): Promise<void> {
+      return new Promise(resolve => {
+          const proj = new Graphics();
+          proj.circle(0, 0, 15);
+          proj.fill(color);
+          proj.x = startX;
+          proj.y = startY;
+          this.uiLayer.addChild(proj);
+
+          let elapsed = 0;
+          const duration = 0.4;
+          const tickerFn = (ticker: any) => {
+              const dt = ticker.deltaMS / 1000;
+              elapsed += dt;
+              const t = Math.min(1, elapsed / duration);
+              // easeOutQuad
+              const easeT = t * (2 - t);
+              proj.x = startX + (endX - startX) * easeT;
+              proj.y = startY + (endY - startY) * easeT;
+
+              if (elapsed >= duration) {
+                  this.engine.app.ticker.remove(tickerFn);
+                  proj.destroy();
+                  resolve();
+              }
+          };
+          this.engine.app.ticker.add(tickerFn);
+      });
+  }
+
   createButtons(width: number, height: number) {
     // Play Button
     this.playButton = new Container();
@@ -357,7 +429,61 @@ export class MainScene implements GameScene {
       // Interaction
       cardContainer.eventMode = 'static';
       cardContainer.cursor = 'pointer';
-      cardContainer.on('pointerdown', () => this.onCardClick(index));
+
+      let dragging = false;
+      let dragStartX = 0;
+      let dragStartY = 0;
+      let cardStartX = 0;
+
+      cardContainer.on('pointerdown', (e) => {
+          if (this.combatSystem.currentPhase !== 'Action' && this.combatSystem.currentPhase !== 'Discard') return;
+          dragging = true;
+          dragStartX = e.global.x;
+          dragStartY = e.global.y;
+          cardStartX = cardContainer.x;
+          cardContainer.alpha = 0.8;
+          this.handContainer.setChildIndex(cardContainer, this.handContainer.children.length - 1);
+      });
+
+      cardContainer.on('pointerup', (e) => {
+          if (!dragging) return;
+          dragging = false;
+          cardContainer.alpha = 1;
+
+          const dx = e.global.x - dragStartX;
+          const dy = e.global.y - dragStartY;
+
+          if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+              // It's a click
+              this.onCardClick(index);
+          } else {
+              // It's a drag
+              let newIndex = Math.round((cardContainer.x + totalWidth / 2) / spacing);
+              newIndex = Math.max(0, Math.min(hand.length - 1, newIndex));
+
+              if (newIndex !== index) {
+                  const card = hand.splice(index, 1)[0];
+                  hand.splice(newIndex, 0, card);
+                  this.selectedCardIndices.clear(); // Clear selection on reorder to avoid confusion
+              }
+              this.renderHand();
+              this.updatePlayButton();
+          }
+      });
+
+      cardContainer.on('pointerupoutside', () => {
+          if (!dragging) return;
+          dragging = false;
+          cardContainer.alpha = 1;
+          this.renderHand(); // Reset position
+      });
+
+      cardContainer.on('pointermove', (e) => {
+          if (dragging) {
+              const dx = e.global.x - dragStartX;
+              cardContainer.x = cardStartX + dx;
+          }
+      });
 
       this.handContainer.addChild(cardContainer);
     });
@@ -413,7 +539,12 @@ export class MainScene implements GameScene {
     }
   }
 
-  onPlayCards() {
+  updatePowerJingdaoText() {
+      const p = this.combatSystem.playerStats;
+      this.powerJingdaoText.text = `【力量: ${p.attack}  X  劲道: ${p.jingdao}】`;
+  }
+
+  async onPlayCards() {
     this.audio.ensureResumed();
 
     if (this.combatSystem.currentPhase === 'Action') {
@@ -422,9 +553,75 @@ export class MainScene implements GameScene {
         this.audio.play('move');
 
         const indices = Array.from(this.selectedCardIndices);
-        this.combatSystem.playTurn(indices);
-        this.selectedCardIndices.clear();
 
+        // Hide button during animation
+        this.playButton.visible = false;
+
+        const hooks = {
+            onCardPlay: async (card: MoveCard, index: number) => {
+                // Find card container (it will be index in the hand Container)
+                // But handContainer might have changed if we cleared selection.
+                // For simplicity, just spawn text at center
+                const w = this.engine.app.renderer.width;
+                const h = this.engine.app.renderer.height;
+
+                let text = `${card.name}: `;
+                if (card.power) text += `力量+${card.power} `;
+                if (card.jingdao) text += `劲道+${card.jingdao} `;
+                if (card.def) text += `防御+${card.def} `;
+
+                this.spawnFloatingText(w / 2, h / 2, text, '#00ff00');
+                this.updatePowerJingdaoText();
+                this.updateUI(); // update HP/def
+                await this.sleep(600);
+            },
+            onTechTrigger: async (tech: any, result: any, diffs: any) => {
+                const techIndex = this.combatSystem.equippedTechniques.findIndex(t => t.id === tech.id);
+                if (techIndex >= 0) {
+                    const techContainer = this.techniqueContainer.children[techIndex] as Container;
+                    techContainer.scale.set(1.5);
+
+                    let text = `${tech.name} 触发!`;
+                    if (diffs.atkDiff) text += ` 力量+${diffs.atkDiff}`;
+                    if (diffs.jingDiff) text += ` 劲道+${diffs.jingDiff}`;
+                    if (diffs.defDiff) text += ` 防御+${diffs.defDiff}`;
+                    if (diffs.dmgDiff > 0) text += ` 伤害+${diffs.dmgDiff}`;
+
+                    const pos = techContainer.getGlobalPosition();
+                    this.spawnFloatingText(pos.x + 50, pos.y, text, '#ffff00');
+
+                    this.updatePowerJingdaoText();
+                    this.updateUI();
+                    await this.sleep(800);
+                    techContainer.scale.set(1.0);
+                }
+            },
+            onPlayerAttack: async (damage: number, actualDamage: number) => {
+                if (damage > 0) {
+                    const w = this.engine.app.renderer.width;
+                    const h = this.engine.app.renderer.height;
+                    await this.animateProjectile(w / 2, h / 2 - 50, this.enemySprite.x, this.enemySprite.y - 50, 0xffaa00);
+                    this.spawnFloatingText(this.enemySprite.x, this.enemySprite.y - 100, `-${actualDamage}`, '#ff0000');
+                }
+                this.updateUI();
+                await this.sleep(600);
+            },
+            onEnemyAttack: async (damage: number, actualDamage: number) => {
+                if (damage > 0) {
+                    await this.animateProjectile(this.enemySprite.x, this.enemySprite.y - 50, this.playerSprite.x, this.playerSprite.y - 50, 0xff0000);
+                    this.spawnFloatingText(this.playerSprite.x, this.playerSprite.y - 100, `-${actualDamage}`, '#ff0000');
+                }
+                this.updateUI();
+                await this.sleep(600);
+            }
+        };
+
+        this.selectedCardIndices.clear();
+        this.renderHand(); // Render empty selection
+
+        await this.combatSystem.playTurn(indices, hooks);
+
+        this.playButton.visible = true;
         this.updateUI();
         this.checkPhaseTransition();
     } else if (this.combatSystem.currentPhase === 'Discard') {
@@ -474,9 +671,11 @@ export class MainScene implements GameScene {
   updateUI() {
     const p = this.combatSystem.playerStats;
     const e = this.combatSystem.enemyStats;
-    this.playerStatsText.text = `玩家 HP: ${p.hp}/${p.maxHp}\n攻击: ${p.attack} 防御: ${p.defense} 劲道: ${p.jingdao}`;
-    this.enemyStatsText.text = `敌人 HP: ${e.hp}/${e.maxHp}\n攻击: ${e.attack} 防御: ${e.defense}`;
+    this.playerStatsText.text = `玩家 HP: ${p.hp}/${p.maxHp}\n防: ${p.defense}`;
+    this.enemyStatsText.text = `敌人 HP: ${e.hp}/${e.maxHp}\n防: ${e.defense}`;
     this.turnText.text = `回合: ${this.combatSystem.turnCount}`;
+
+    this.updatePowerJingdaoText();
 
     const recentLogs = this.combatSystem.log.slice(-6);
     this.logText.text = recentLogs.join('\n');
