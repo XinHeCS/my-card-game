@@ -1,4 +1,4 @@
-import { Container, Text, Graphics, Sprite, Assets } from 'pixi.js';
+import { Container, Text, Graphics, Sprite, Assets, Rectangle } from 'pixi.js';
 import { Engine, GameScene } from '../engine/Engine';
 import { World } from '../engine/World';
 import { GameData } from './GameData';
@@ -15,24 +15,60 @@ export class EditorScene implements GameScene {
   private tempDeck: MoveCard[] = [];
   private tempTechs: TechniqueCard[] = [];
 
-  private deckListContainer: Container;
-  private poolListContainer: Container;
-  private infoText!: Text;
+  private leftListContainer: Container;
+  private rightListContainer: Container;
+  private leftScrollY: number = 0;
+  private rightScrollY: number = 0;
+  private listHeight: number = 0;
 
   private currentTab: 'Moves' | 'Techniques' = 'Moves';
+
+  private scrollListener: (e: WheelEvent) => void;
+
+  private leftContentHeight: number = 0;
+  private rightContentHeight: number = 0;
 
   constructor(engine: Engine) {
     this.engine = engine;
     this.world = new World();
     this.container = new Container();
-    this.deckListContainer = new Container();
-    this.poolListContainer = new Container();
+    this.leftListContainer = new Container();
+    this.rightListContainer = new Container();
     this.engine.app.stage.addChild(this.container);
 
     // Deep copy current state
     const data = GameData.getInstance();
     this.tempDeck = [...data.currentDeck];
     this.tempTechs = [...data.currentTechniques];
+
+    this.scrollListener = this.handleScroll.bind(this);
+    window.addEventListener('wheel', this.scrollListener);
+  }
+
+  handleScroll(e: WheelEvent) {
+    const w = this.engine.app.renderer.width;
+    const mx = e.clientX;
+
+    const scrollSpeed = 0.5;
+    const delta = e.deltaY * scrollSpeed;
+
+    if (mx < w / 2) {
+        this.leftScrollY -= delta;
+
+        const maxLeft = Math.min(0, this.listHeight - this.leftContentHeight);
+        if (this.leftScrollY > 0) this.leftScrollY = 0;
+        if (this.leftScrollY < maxLeft) this.leftScrollY = maxLeft;
+
+        this.leftListContainer.y = 140 + this.leftScrollY;
+    } else {
+        this.rightScrollY -= delta;
+
+        const maxRight = Math.min(0, this.listHeight - this.rightContentHeight);
+        if (this.rightScrollY > 0) this.rightScrollY = 0;
+        if (this.rightScrollY < maxRight) this.rightScrollY = maxRight;
+
+        this.rightListContainer.y = 140 + this.rightScrollY;
+    }
   }
 
   async init() {
@@ -54,6 +90,7 @@ export class EditorScene implements GameScene {
 
     const w = this.engine.app.renderer.width;
     const h = this.engine.app.renderer.height;
+    this.listHeight = h - 160; // Top header space
 
     // Header
     const title = new Text({ text: '牌组编辑', style: { fill: 'white', fontSize: 36 } });
@@ -83,8 +120,35 @@ export class EditorScene implements GameScene {
     saveBtn.on('pointerdown', () => this.saveAndExit());
     this.container.addChild(saveBtn);
 
+    // Setup Lists Containers and Masks
+    this.setupListContainers(w, h);
+
     // Lists
     this.renderLists();
+  }
+
+  setupListContainers(w: number, h: number) {
+    // Left Mask
+    const leftMask = new Graphics();
+    leftMask.rect(0, 140, w / 2 - 10, h - 150);
+    leftMask.fill(0xffffff);
+    this.container.addChild(leftMask);
+
+    this.leftListContainer.mask = leftMask;
+    this.leftListContainer.x = 0;
+    this.leftListContainer.y = 140 + this.leftScrollY;
+    this.container.addChild(this.leftListContainer);
+
+    // Right Mask
+    const rightMask = new Graphics();
+    rightMask.rect(w / 2 + 50, 140, w / 2 - 60, h - 150);
+    rightMask.fill(0xffffff);
+    this.container.addChild(rightMask);
+
+    this.rightListContainer.mask = rightMask;
+    this.rightListContainer.x = 0;
+    this.rightListContainer.y = 140 + this.rightScrollY;
+    this.container.addChild(this.rightListContainer);
   }
 
   createTabBtn(x: number, y: number, label: string, mode: 'Moves' | 'Techniques') {
@@ -102,6 +166,8 @@ export class EditorScene implements GameScene {
     btn.cursor = 'pointer';
     btn.on('pointerdown', () => {
         this.currentTab = mode;
+        this.leftScrollY = 0;
+        this.rightScrollY = 0;
         this.createUI(); // Re-render
     });
     this.container.addChild(btn);
@@ -110,7 +176,10 @@ export class EditorScene implements GameScene {
   renderLists() {
     const w = this.engine.app.renderer.width;
 
-    // Left: Current Deck
+    this.leftListContainer.removeChildren();
+    this.rightListContainer.removeChildren();
+
+    // Headers (Static, outside scroll)
     const leftLabel = new Text({
         text: this.currentTab === 'Moves' ? `当前招式 (${this.tempDeck.length}/30)` : `当前功法 (${this.tempTechs.length}/5)`,
         style: { fill: 'white', fontSize: 20 }
@@ -119,7 +188,6 @@ export class EditorScene implements GameScene {
     leftLabel.y = 100;
     this.container.addChild(leftLabel);
 
-    // Right: Pool
     const rightLabel = new Text({
         text: '备选池',
         style: { fill: 'white', fontSize: 20 }
@@ -129,7 +197,7 @@ export class EditorScene implements GameScene {
     this.container.addChild(rightLabel);
 
     // Render Items
-    let y = 140;
+    let y = 0;
     const currentList = this.currentTab === 'Moves' ? this.tempDeck : this.tempTechs;
     const poolList = this.currentTab === 'Moves' ? GameData.getInstance().allMoves : GameData.getInstance().allTechniques;
 
@@ -139,21 +207,35 @@ export class EditorScene implements GameScene {
         row.x = 50;
         row.y = y;
         row.on('pointerdown', () => this.removeItem(idx));
-        this.container.addChild(row);
+        this.leftListContainer.addChild(row);
         y += 40;
     });
 
+    // Clamp Scroll
+    this.leftContentHeight = y;
+    const maxLeftScroll = Math.min(0, this.listHeight - this.leftContentHeight);
+    if (this.leftScrollY < maxLeftScroll) this.leftScrollY = maxLeftScroll;
+    this.leftListContainer.y = 140 + this.leftScrollY;
+
+
     // Right List (Pool)
-    y = 140;
+    y = 0;
     poolList.forEach((item) => {
         const row = this.createItemRow(item, false);
         row.x = w / 2 + 50;
         row.y = y;
         row.on('pointerdown', () => this.addItem(item));
-        this.container.addChild(row);
+        this.rightListContainer.addChild(row);
         y += 40;
     });
+
+    // Clamp Scroll
+    this.rightContentHeight = y;
+    const maxRightScroll = Math.min(0, this.listHeight - this.rightContentHeight);
+    if (this.rightScrollY < maxRightScroll) this.rightScrollY = maxRightScroll;
+    this.rightListContainer.y = 140 + this.rightScrollY;
   }
+
 
   createItemRow(item: any, isRemove: boolean) {
     const row = new Container();
@@ -224,5 +306,8 @@ export class EditorScene implements GameScene {
 
   update(dt: number) {}
   onResize(w: number, h: number) { this.createUI(); }
-  destroy() { this.container.destroy({ children: true }); }
+  destroy() {
+      window.removeEventListener('wheel', this.scrollListener);
+      this.container.destroy({ children: true });
+  }
 }
