@@ -211,15 +211,15 @@ export class MainScene implements GameScene {
         this.uiLayer.addChild(text);
     });
 
-    // Explicitly update UI texts to show initial stats properly
-    this.updateUI();
-
     // Turn Info
     this.turnText = new Text({ text: '回合: 1', style });
     this.turnText.anchor.set(0.5, 0);
     this.turnText.x = width / 2;
     this.turnText.y = 20;
     this.uiLayer.addChild(this.turnText);
+
+    // Explicitly update UI texts to show initial stats properly
+    this.updateUI();
 
     // Log
     const logStyle = new TextStyle({
