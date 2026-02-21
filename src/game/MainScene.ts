@@ -80,8 +80,21 @@ export class MainScene implements GameScene {
 
         this.enemySprites = [];
         for (let enemy of this.combatSystem.enemies) {
-            const enemyTexture = await Assets.load(enemy.spritePath);
-            this.enemySprites.push(Sprite.from(enemyTexture));
+            let enemyTex;
+            try {
+                enemyTex = await Assets.load(enemy.spritePath);
+            } catch (e) {
+                console.warn(`Failed to load ${enemy.spritePath}, using fallback`);
+                enemyTex = Texture.WHITE;
+            }
+            const sprite = Sprite.from(enemyTex);
+            if (enemyTex === Texture.WHITE) {
+                sprite.tint = 0xFF0000;
+                sprite.width = 100;
+                sprite.height = 100;
+            }
+            this.enemySprites.push(sprite);
+            this.gameLayer.addChild(sprite); // Make sure it's always added to the layer
         }
 
         this.setupScene();
@@ -95,7 +108,11 @@ export class MainScene implements GameScene {
 
         this.enemySprites = [];
         for (let enemy of this.combatSystem.enemies) {
-            this.enemySprites.push(Sprite.from('red'));
+            const sprite = Sprite.from('red');
+            sprite.width = 100;
+            sprite.height = 100;
+            this.enemySprites.push(sprite);
+            this.gameLayer.addChild(sprite);
         }
 
         this.setupScene();
@@ -129,6 +146,16 @@ export class MainScene implements GameScene {
         sprite.y = height * 0.75;
         // Make enemies slightly smaller if there are many
         sprite.scale.set(enemyCount > 1 ? 3 : 4);
+
+        // Ensure enemy sprites are visible and added correctly
+        if (sprite.texture === Texture.WHITE || sprite.texture === Texture.EMPTY || !sprite.texture) {
+            sprite.texture = Texture.WHITE;
+            sprite.tint = 0xFF0000;
+            sprite.width = 100 * (enemyCount > 1 ? 3 : 4);
+            sprite.height = 100 * (enemyCount > 1 ? 3 : 4);
+        }
+        sprite.visible = true; // explicitly force visibility
+
         this.gameLayer.addChild(sprite);
     });
 
@@ -164,17 +191,28 @@ export class MainScene implements GameScene {
     });
 
     this.enemyStatsTexts = [];
+    const enemyCount = this.combatSystem.enemies.length;
+    const startX = width * 0.6;
+    const endX = width * 0.9;
+    const spacingX = enemyCount > 1 ? (endX - startX) / (enemyCount - 1) : 0;
+
     this.combatSystem.enemies.forEach((enemy, index) => {
         const text = new Text({ text: `${enemy.name}\nHP: 100`, style: enemyStyle });
         text.anchor.set(0.5, 1);
+        text.x = enemyCount === 1 ? width * 0.75 : startX + index * spacingX;
+        text.y = height * 0.75 - 120; // Default position relative to expected sprite position
+
         const sprite = this.enemySprites[index];
         if (sprite) {
             text.x = sprite.x;
-            text.y = sprite.y - sprite.height - 10;
+            text.y = sprite.y - (sprite.height || 100 * (enemyCount > 1 ? 3 : 4)) - 10;
         }
         this.enemyStatsTexts.push(text);
         this.uiLayer.addChild(text);
     });
+
+    // Explicitly update UI texts to show initial stats properly
+    this.updateUI();
 
     // Turn Info
     this.turnText = new Text({ text: '回合: 1', style });
@@ -769,9 +807,17 @@ export class MainScene implements GameScene {
             if (sprite) {
                 sprite.x = enemyCount === 1 ? width * 0.75 : startX + index * spacingX;
                 sprite.y = height * 0.75;
+
+                // Keep scaling logic here for resize event
+                sprite.scale.set(enemyCount > 1 ? 3 : 4);
+                if (sprite.texture === Texture.WHITE || sprite.texture === Texture.EMPTY) {
+                    sprite.width = 100 * (enemyCount > 1 ? 3 : 4);
+                    sprite.height = 100 * (enemyCount > 1 ? 3 : 4);
+                }
+
                 if (this.enemyStatsTexts[index]) {
                     this.enemyStatsTexts[index].x = sprite.x;
-                    this.enemyStatsTexts[index].y = sprite.y - sprite.height - 10;
+                    this.enemyStatsTexts[index].y = sprite.y - (sprite.height || 100 * (enemyCount > 1 ? 3 : 4)) - 10;
                 }
             }
         });
