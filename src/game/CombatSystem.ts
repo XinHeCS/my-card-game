@@ -85,14 +85,14 @@ export class CombatSystem {
   async playTurn(selectedCardIndices: number[], hooks?: CombatHooks) {
     if (this.currentPhase !== 'Action') return;
 
-    // Rule: Can play 0 to 5 cards
     if (selectedCardIndices.length > 5) {
       this.log.push('最多只能选择 5 张牌！');
       return;
     }
 
     if (selectedCardIndices.length === 0) {
-      this.log.push('未出牌，直接结束回合。');
+      this.log.push('未选择任何牌。');
+      return;
     }
 
     const playedCards = selectedCardIndices.map(i => this.hand[i]);
@@ -107,7 +107,10 @@ export class CombatSystem {
     // Discard played cards
     this.discardPile.push(...playedCards);
 
-    this.endTurnCheck();
+    // Stay in Action phase if game is not over
+    if ((this.currentPhase as GamePhase) !== 'GameOver') {
+        this.currentPhase = 'Action';
+    }
   }
 
   async resolveCombat(playedCards: MoveCard[], hooks?: CombatHooks) {
@@ -123,8 +126,6 @@ export class CombatSystem {
             await hooks.onCardPlay(card, i);
         }
     }
-
-    let cardDef = playedCards.reduce((sum, card) => sum + (card.def || 0), 0);
 
     // Initial damage calculation
     let totalDamage = this.playerStats.attack * this.playerStats.jingdao;
@@ -166,7 +167,7 @@ export class CombatSystem {
         this.maxDamageCombo = [...playedCards];
     }
 
-    this.log.push(`造成了 ${actualDamage} 点伤害！ (被格挡: ${Math.min(totalDamage, this.enemyStats.defense)})`);
+    this.log.push(`出招造成了 ${actualDamage} 点伤害！ (被格挡: ${Math.min(totalDamage, this.enemyStats.defense)})`);
 
     if (hooks && hooks.onPlayerAttack) {
         await hooks.onPlayerAttack(totalDamage, actualDamage);
@@ -178,11 +179,17 @@ export class CombatSystem {
         this.log.push('敌人被击败！你赢了！');
         return;
     }
+  }
 
-    // 4. Enemy Turn
-    if (this.enemyStats.hp > 0) {
-      await this.enemyTurn(cardDef, hooks);
-    }
+  async endPlayerTurn(hooks?: CombatHooks) {
+      if (this.currentPhase !== 'Action') return;
+      this.currentPhase = 'Resolution';
+
+      if (this.enemyStats.hp > 0) {
+          await this.enemyTurn(0, hooks);
+      }
+
+      this.endTurnCheck();
   }
 
   async enemyTurn(bonusDef: number = 0, hooks?: CombatHooks) {
