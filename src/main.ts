@@ -51,7 +51,7 @@ async function main() {
   // Handle resize
   window.addEventListener('resize', () => {
     app.renderer.resize(window.innerWidth, window.innerHeight);
-    scene.onResize(window.innerWidth, window.innerHeight);
+    engine.resize(window.innerWidth, window.innerHeight);
   });
 
   // Notify platform that game is ready

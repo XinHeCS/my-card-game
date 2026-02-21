@@ -39,6 +39,12 @@ export class Engine {
     this.world = scene.world;
     scene.init();
   }
+
+  resize(width: number, height: number): void {
+    if (this.scene) {
+      this.scene.onResize(width, height);
+    }
+  }
   
   start(): void {
     this._running = true;
