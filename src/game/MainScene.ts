@@ -600,16 +600,17 @@ export class MainScene implements GameScene {
                 if (damage > 0) {
                     const w = this.engine.app.renderer.width;
                     const h = this.engine.app.renderer.height;
-                    await this.animateProjectile(w / 2, h / 2 - 50, this.enemySprite.x, this.enemySprite.y - 50, 0xffaa00);
-                    this.spawnFloatingText(this.enemySprite.x, this.enemySprite.y - 100, `-${actualDamage}`, '#ff0000');
+                    await this.animateProjectile(w / 2, h / 2 - 50, w - 250, 40, 0xffaa00);
+                    this.spawnFloatingText(w - 250, 40, `-${actualDamage}`, '#ff0000');
                 }
                 this.updateUI();
                 await this.sleep(600);
             },
             onEnemyAttack: async (damage: number, actualDamage: number) => {
                 if (damage > 0) {
-                    await this.animateProjectile(this.enemySprite.x, this.enemySprite.y - 50, this.playerSprite.x, this.playerSprite.y - 50, 0xff0000);
-                    this.spawnFloatingText(this.playerSprite.x, this.playerSprite.y - 100, `-${actualDamage}`, '#ff0000');
+                    const w = this.engine.app.renderer.width;
+                    await this.animateProjectile(w - 250, 40, 70, 40, 0xff0000);
+                    this.spawnFloatingText(70, 40, `-${actualDamage}`, '#ff0000');
                 }
                 this.updateUI();
                 await this.sleep(600);
