@@ -33,6 +33,9 @@ export class EditorScene implements GameScene {
   private infoTitle: Text;
   private infoDesc: Text;
 
+  private leftLabel!: Text;
+  private rightLabel!: Text;
+
   constructor(engine: Engine) {
     this.engine = engine;
     this.world = new World();
@@ -152,6 +155,23 @@ export class EditorScene implements GameScene {
     // Info Panel
     this.setupInfoPanel(w);
 
+    // Labels
+    this.leftLabel = new Text({
+        text: '',
+        style: { fill: 'white', fontSize: 20 }
+    });
+    this.leftLabel.x = 50;
+    this.leftLabel.y = 100;
+    this.container.addChild(this.leftLabel);
+
+    this.rightLabel = new Text({
+        text: '备选池',
+        style: { fill: 'white', fontSize: 20 }
+    });
+    this.rightLabel.x = w / 2 + 50;
+    this.rightLabel.y = 100;
+    this.container.addChild(this.rightLabel);
+
     // Setup Lists Containers and Masks
     this.setupListContainers(w, h);
 
@@ -230,22 +250,9 @@ export class EditorScene implements GameScene {
     this.leftListContainer.removeChildren();
     this.rightListContainer.removeChildren();
 
-    // Headers
-    const leftLabel = new Text({
-        text: this.currentTab === 'Moves' ? `当前招式 (${this.tempDeck.length}/30)` : `当前功法 (${this.tempTechs.length}/5)`,
-        style: { fill: 'white', fontSize: 20 }
-    });
-    leftLabel.x = 50;
-    leftLabel.y = 100;
-    this.container.addChild(leftLabel);
-
-    const rightLabel = new Text({
-        text: '备选池',
-        style: { fill: 'white', fontSize: 20 }
-    });
-    rightLabel.x = w / 2 + 50;
-    rightLabel.y = 100;
-    this.container.addChild(rightLabel);
+    // Update Headers
+    this.leftLabel.text = this.currentTab === 'Moves' ? `当前招式 (${this.tempDeck.length}/30)` : `当前功法 (${this.tempTechs.length}/5)`;
+    // rightLabel is static '备选池'
 
     // Render Items
     let y = 0;
