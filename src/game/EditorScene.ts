@@ -23,13 +23,19 @@ export class EditorScene implements GameScene {
 
   private currentTab: 'Moves' | 'Techniques' = 'Moves';
 
-  // Filters & Sorting
-  private filterWeapon: string = 'All'; // 'All', 'Fist', 'Blade', 'Spear', 'Sword', 'Staff'
-  private filterWeight: string = 'All'; // 'All', 'Light', 'Heavy', 'Charge', 'Block'
-  private sortBy: 'default' | 'power' | 'def' | 'jingdao' = 'default';
-  private sortDesc: boolean = true;
+  // Filters & Sorting - Deck (Left)
+  private deckFilterWeapon: string = 'All';
+  private deckFilterWeight: string = 'All';
+  private deckSortBy: string = 'default';
+
+  // Filters & Sorting - Pool (Right)
+  private poolFilterWeapon: string = 'All';
+  private poolFilterWeight: string = 'All';
+  private poolSortBy: string = 'default';
 
   private filterContainer: Container;
+  private activeDropdown: Container | null = null;
+  private stagePointerDownHandler: () => void;
 
   private scrollListener: (e: WheelEvent) => void;
 
@@ -66,6 +72,15 @@ export class EditorScene implements GameScene {
     // Init Info Panel elements
     this.infoTitle = new Text({ text: '', style: { fill: '#ffff00', fontSize: 18, fontWeight: 'bold' } });
     this.infoDesc = new Text({ text: '', style: { fill: 'white', fontSize: 14, wordWrap: true, wordWrapWidth: 230 } });
+
+    this.stagePointerDownHandler = () => {
+        if (this.activeDropdown) {
+            this.activeDropdown.visible = false;
+            this.activeDropdown = null;
+        }
+    };
+    this.engine.app.stage.eventMode = 'static';
+    this.engine.app.stage.on('pointerdown', this.stagePointerDownHandler);
   }
 
   handleScroll(e: WheelEvent) {
@@ -82,7 +97,7 @@ export class EditorScene implements GameScene {
         if (this.leftScrollY > 0) this.leftScrollY = 0;
         if (this.leftScrollY < maxLeft) this.leftScrollY = maxLeft;
 
-        this.leftListContainer.y = 140 + this.leftScrollY;
+        this.leftListContainer.y = 150 + this.leftScrollY;
     } else {
         this.rightScrollY -= delta;
 
@@ -90,7 +105,7 @@ export class EditorScene implements GameScene {
         if (this.rightScrollY > 0) this.rightScrollY = 0;
         if (this.rightScrollY < maxRight) this.rightScrollY = maxRight;
 
-        this.rightListContainer.y = 140 + this.rightScrollY;
+        this.rightListContainer.y = 150 + this.rightScrollY;
     }
   }
 
@@ -170,7 +185,7 @@ export class EditorScene implements GameScene {
         style: { fill: 'white', fontSize: 20 }
     });
     this.leftLabel.x = 50;
-    this.leftLabel.y = 100;
+    this.leftLabel.y = 80;
     this.container.addChild(this.leftLabel);
 
     this.rightLabel = new Text({
@@ -178,7 +193,7 @@ export class EditorScene implements GameScene {
         style: { fill: 'white', fontSize: 20 }
     });
     this.rightLabel.x = w / 2 + 50;
-    this.rightLabel.y = 100;
+    this.rightLabel.y = 80;
     this.container.addChild(this.rightLabel);
 
     this.createFilterUI(w);
@@ -189,7 +204,8 @@ export class EditorScene implements GameScene {
     // Lists
     this.renderLists();
 
-    // Ensure Info Panel is on top
+    // Re-add to ensure Z-order: Masks -> Lists -> Filters -> Info
+    this.container.addChild(this.filterContainer);
     this.container.addChild(this.infoContainer);
   }
 
@@ -209,9 +225,82 @@ export class EditorScene implements GameScene {
       this.container.addChild(this.infoContainer);
   }
 
+  createDropdown(x: number, y: number, labelPrefix: string, options: {value: string, label: string}[], currentValue: string, onChange: (val: string) => void): Container {
+      const container = new Container();
+      container.x = x;
+      container.y = y;
+
+      const width = 110;
+      const height = 30;
+
+      const btnBg = new Graphics();
+      btnBg.roundRect(0, 0, width, height, 5);
+      btnBg.fill(0x444444);
+      container.addChild(btnBg);
+
+      const selectedOpt = options.find(o => o.value === currentValue);
+      const labelStr = selectedOpt ? selectedOpt.label : currentValue;
+      const btnText = new Text({ text: `${labelPrefix}${labelStr} ▼`, style: { fill: 'white', fontSize: 14 } });
+      btnText.anchor.set(0.5);
+      btnText.position.set(width / 2, height / 2);
+      container.addChild(btnText);
+
+      const menu = new Container();
+      menu.y = height + 2;
+      menu.visible = false;
+      container.addChild(menu);
+
+      const menuBg = new Graphics();
+      menuBg.roundRect(0, 0, width, options.length * height, 5);
+      menuBg.fill(0x222222);
+      menuBg.stroke({ width: 1, color: 0x888888 });
+      menu.addChild(menuBg);
+
+      options.forEach((opt, idx) => {
+          const itemCont = new Container();
+          itemCont.y = idx * height;
+          
+          const itemBg = new Graphics();
+          itemBg.rect(0, 0, width, height);
+          itemBg.fill(opt.value === currentValue ? 0x555555 : 0x222222);
+          itemCont.addChild(itemBg);
+
+          const itemText = new Text({ text: opt.label, style: { fill: 'white', fontSize: 14 } });
+          itemText.anchor.set(0.5);
+          itemText.position.set(width / 2, height / 2);
+          itemCont.addChild(itemText);
+
+          itemCont.eventMode = 'static';
+          itemCont.cursor = 'pointer';
+          itemCont.on('pointerenter', () => { if (opt.value !== currentValue) itemBg.fill(0x444444); });
+          itemCont.on('pointerleave', () => { if (opt.value !== currentValue) itemBg.fill(0x222222); });
+          itemCont.on('pointerdown', (e) => {
+              e.stopPropagation();
+              menu.visible = false;
+              this.activeDropdown = null;
+              onChange(opt.value);
+          });
+          
+          menu.addChild(itemCont);
+      });
+
+      container.eventMode = 'static';
+      container.cursor = 'pointer';
+      container.on('pointerdown', (e) => {
+          e.stopPropagation();
+          if (this.activeDropdown && this.activeDropdown !== menu) {
+              this.activeDropdown.visible = false;
+          }
+          menu.visible = !menu.visible;
+          this.activeDropdown = menu.visible ? menu : null;
+      });
+
+      return container;
+  }
+
   createFilterUI(w: number) {
       this.filterContainer.removeChildren();
-      this.container.addChild(this.filterContainer);
+      // Ensure filter container is at correct depth but we handle that in createUI
 
       if (this.currentTab !== 'Moves') {
           this.filterContainer.visible = false;
@@ -219,136 +308,72 @@ export class EditorScene implements GameScene {
       }
       this.filterContainer.visible = true;
 
-      const startX = w / 2 + 120;
-      const startY = 100;
+      const weaponOpts = [
+          {value: 'All', label: '全部'}, {value: 'Fist', label: '拳'}, 
+          {value: 'Blade', label: '刀'}, {value: 'Spear', label: '枪'}, 
+          {value: 'Sword', label: '剑'}, {value: 'Staff', label: '棒'}
+      ];
+      const weightOpts = [
+          {value: 'All', label: '全部'}, {value: 'Light', label: '轻击'}, 
+          {value: 'Heavy', label: '重击'}, {value: 'Charge', label: '蓄力'}, {value: 'Block', label: '格挡'}
+      ];
+      const sortOpts = [
+          {value: 'default', label: '默认'},
+          {value: 'power', label: '力量↓'}, {value: 'power_asc', label: '力量↑'},
+          {value: 'def', label: '防御↓'}, {value: 'def_asc', label: '防御↑'},
+          {value: 'jingdao', label: '劲道↓'}, {value: 'jingdao_asc', label: '劲道↑'}
+      ];
 
-      // Weapon Filter Button
-      const weaponBtn = new Container();
-      weaponBtn.x = startX;
-      weaponBtn.y = startY;
+      // Deck Filters (Left)
+      const deckStartX = 50;
+      const deckStartY = 110;
+      
+      this.filterContainer.addChild(this.createDropdown(deckStartX, deckStartY, "武:", weaponOpts, this.deckFilterWeapon, (val) => {
+          this.deckFilterWeapon = val; this.leftScrollY = 0; this.renderLists();
+      }));
+      this.filterContainer.addChild(this.createDropdown(deckStartX + 120, deckStartY, "类:", weightOpts, this.deckFilterWeight, (val) => {
+          this.deckFilterWeight = val; this.leftScrollY = 0; this.renderLists();
+      }));
+      this.filterContainer.addChild(this.createDropdown(deckStartX + 240, deckStartY, "排:", sortOpts, this.deckSortBy, (val) => {
+          this.deckSortBy = val; this.leftScrollY = 0; this.renderLists();
+      }));
 
-      const weaponBg = new Graphics();
-      weaponBg.roundRect(0, 0, 100, 30, 5);
-      weaponBg.fill(0x444444);
-      weaponBtn.addChild(weaponBg);
+      // Pool Filters (Right)
+      const poolStartX = w / 2 + 50;
+      const poolStartY = 110;
 
-      const weaponText = new Text({ text: "武器: ", style: { fill: 'white', fontSize: 14 } });
-      weaponText.anchor.set(0.5);
-      weaponText.position.set(50, 15);
-      weaponBtn.addChild(weaponText);
-
-      const weapons = ['All', 'Fist', 'Blade', 'Spear', 'Sword', 'Staff'];
-      const weaponNames: Record<string, string> = { 'All': '全部', 'Fist': '拳', 'Blade': '刀', 'Spear': '枪', 'Sword': '剑', 'Staff': '棒' };
-      weaponText.text = "武器: " + weaponNames[this.filterWeapon];
-
-      weaponBtn.eventMode = 'static';
-      weaponBtn.cursor = 'pointer';
-      weaponBtn.on('pointerdown', () => {
-          const idx = weapons.indexOf(this.filterWeapon);
-          this.filterWeapon = weapons[(idx + 1) % weapons.length];
-          weaponText.text = "武器: " + weaponNames[this.filterWeapon];
-          this.rightScrollY = 0;
-          this.renderLists();
-      });
-      this.filterContainer.addChild(weaponBtn);
-
-      // Weight Filter Button
-      const weightBtn = new Container();
-      weightBtn.x = startX + 110;
-      weightBtn.y = startY;
-
-      const weightBg = new Graphics();
-      weightBg.roundRect(0, 0, 100, 30, 5);
-      weightBg.fill(0x444444);
-      weightBtn.addChild(weightBg);
-
-      const weightText = new Text({ text: "类型: ", style: { fill: 'white', fontSize: 14 } });
-      weightText.anchor.set(0.5);
-      weightText.position.set(50, 15);
-      weightBtn.addChild(weightText);
-
-      const weights = ['All', 'Light', 'Heavy', 'Charge', 'Block'];
-      const weightNames: Record<string, string> = { 'All': '全部', 'Light': '轻击', 'Heavy': '重击', 'Charge': '蓄力', 'Block': '格挡' };
-      weightText.text = "类型: " + weightNames[this.filterWeight];
-
-      weightBtn.eventMode = 'static';
-      weightBtn.cursor = 'pointer';
-      weightBtn.on('pointerdown', () => {
-          const idx = weights.indexOf(this.filterWeight);
-          this.filterWeight = weights[(idx + 1) % weights.length];
-          weightText.text = "类型: " + weightNames[this.filterWeight];
-          this.rightScrollY = 0;
-          this.renderLists();
-      });
-      this.filterContainer.addChild(weightBtn);
-
-      // Sort Button
-      const sortBtn = new Container();
-      sortBtn.x = startX + 220;
-      sortBtn.y = startY;
-
-      const sortBg = new Graphics();
-      sortBg.roundRect(0, 0, 120, 30, 5);
-      sortBg.fill(0x444444);
-      sortBtn.addChild(sortBg);
-
-      const sortText = new Text({ text: "排序: 默认", style: { fill: 'white', fontSize: 14 } });
-      sortText.anchor.set(0.5);
-      sortText.position.set(60, 15);
-      sortBtn.addChild(sortText);
-
-      const sorts: ('default' | 'power' | 'def' | 'jingdao')[] = ['default', 'power', 'def', 'jingdao'];
-      const sortNames: Record<string, string> = { 'default': '默认', 'power': '力量', 'def': '防御', 'jingdao': '劲道' };
-
-      const updateSortText = () => {
-          sortText.text = "排序: " + sortNames[this.sortBy] + (this.sortBy === 'default' ? '' : (this.sortDesc ? ' ↓' : ' ↑'));
-      };
-      updateSortText();
-
-      sortBtn.eventMode = 'static';
-      sortBtn.cursor = 'pointer';
-      sortBtn.on('pointerdown', () => {
-          if (this.sortBy === 'default') {
-              this.sortBy = 'power';
-              this.sortDesc = true;
-          } else if (this.sortBy === 'power') {
-              if (this.sortDesc) this.sortDesc = false;
-              else { this.sortBy = 'def'; this.sortDesc = true; }
-          } else if (this.sortBy === 'def') {
-              if (this.sortDesc) this.sortDesc = false;
-              else { this.sortBy = 'jingdao'; this.sortDesc = true; }
-          } else if (this.sortBy === 'jingdao') {
-              if (this.sortDesc) this.sortDesc = false;
-              else { this.sortBy = 'default'; }
-          }
-          updateSortText();
-          this.rightScrollY = 0;
-          this.renderLists();
-      });
-      this.filterContainer.addChild(sortBtn);
+      this.filterContainer.addChild(this.createDropdown(poolStartX, poolStartY, "武:", weaponOpts, this.poolFilterWeapon, (val) => {
+          this.poolFilterWeapon = val; this.rightScrollY = 0; this.renderLists();
+      }));
+      this.filterContainer.addChild(this.createDropdown(poolStartX + 120, poolStartY, "类:", weightOpts, this.poolFilterWeight, (val) => {
+          this.poolFilterWeight = val; this.rightScrollY = 0; this.renderLists();
+      }));
+      this.filterContainer.addChild(this.createDropdown(poolStartX + 240, poolStartY, "排:", sortOpts, this.poolSortBy, (val) => {
+          this.poolSortBy = val; this.rightScrollY = 0; this.renderLists();
+      }));
   }
 
   setupListContainers(w: number, h: number) {
     // Left Mask
     const leftMask = new Graphics();
-    leftMask.rect(0, 140, w / 2 - 10, h - 150);
+    leftMask.rect(0, 150, w / 2 - 10, h - 150);
     leftMask.fill(0xffffff);
     this.container.addChild(leftMask);
 
     this.leftListContainer.mask = leftMask;
     this.leftListContainer.x = 0;
-    this.leftListContainer.y = 140 + this.leftScrollY;
+    this.leftListContainer.y = 150 + this.leftScrollY;
     this.container.addChild(this.leftListContainer);
 
     // Right Mask
     const rightMask = new Graphics();
-    rightMask.rect(w / 2 + 50, 140, w / 2 - 60, h - 150);
+    rightMask.rect(w / 2 + 50, 150, w / 2 - 60, h - 150);
     rightMask.fill(0xffffff);
     this.container.addChild(rightMask);
 
     this.rightListContainer.mask = rightMask;
     this.rightListContainer.x = 0;
-    this.rightListContainer.y = 140 + this.rightScrollY;
+    this.rightListContainer.y = 150 + this.rightScrollY;
     this.container.addChild(this.rightListContainer);
   }
 
@@ -380,38 +405,53 @@ export class EditorScene implements GameScene {
     this.leftListContainer.removeChildren();
     this.rightListContainer.removeChildren();
 
+    // Re-render UI to update filters text (optional, but safe)
+    if (this.currentTab === 'Moves' && !this.activeDropdown) {
+        this.createFilterUI(w);
+        this.container.setChildIndex(this.filterContainer, this.container.children.length - 1);
+        this.container.setChildIndex(this.infoContainer, this.container.children.length - 1);
+    }
+
     // Update Headers
     this.leftLabel.text = this.currentTab === 'Moves' ? `当前招式 (${this.tempDeck.length}/30)` : `当前功法 (${this.tempTechs.length}/5)`;
-    // rightLabel is static '备选池'
 
-    // Render Items
-    let y = 0;
-    const currentList = this.currentTab === 'Moves' ? this.tempDeck : this.tempTechs;
-    let poolList = this.currentTab === 'Moves' ? GameData.getInstance().allMoves : GameData.getInstance().allTechniques;
+    let displayDeck = this.currentTab === 'Moves' ? [...this.tempDeck] : [...this.tempTechs];
+    let displayPool = this.currentTab === 'Moves' ? [...GameData.getInstance().allMoves] : [...GameData.getInstance().allTechniques];
 
     if (this.currentTab === 'Moves') {
-        const movesList = poolList as MoveCard[];
-        poolList = movesList.filter(m => {
-            if (this.filterWeapon !== 'All' && m.weapon !== this.filterWeapon) return false;
-            if (this.filterWeight !== 'All' && m.weight !== this.filterWeight) return false;
-            return true;
-        });
+        const sortFunc = (sortBy: string) => {
+            return (a: any, b: any) => {
+                if (sortBy === 'default') return 0;
+                const field = sortBy.replace('_asc', '');
+                const isAsc = sortBy.endsWith('_asc');
+                const valA = a[field] || 0;
+                const valB = b[field] || 0;
+                return isAsc ? valA - valB : valB - valA;
+            };
+        };
 
-        if (this.sortBy !== 'default') {
-            (poolList as MoveCard[]).sort((a, b) => {
-                const valA = (a as any)[this.sortBy] || 0;
-                const valB = (b as any)[this.sortBy] || 0;
-                return this.sortDesc ? valB - valA : valA - valB;
-            });
-        }
+        // Left List Filtering & Sorting
+        displayDeck = (displayDeck as MoveCard[]).filter(m => {
+            if (this.deckFilterWeapon !== 'All' && m.weapon !== this.deckFilterWeapon) return false;
+            if (this.deckFilterWeight !== 'All' && m.weight !== this.deckFilterWeight) return false;
+            return true;
+        }).sort(sortFunc(this.deckSortBy));
+
+        // Right List Filtering & Sorting
+        displayPool = (displayPool as MoveCard[]).filter(m => {
+            if (this.poolFilterWeapon !== 'All' && m.weapon !== this.poolFilterWeapon) return false;
+            if (this.poolFilterWeight !== 'All' && m.weight !== this.poolFilterWeight) return false;
+            return true;
+        }).sort(sortFunc(this.poolSortBy));
     }
 
     // Left List (Current)
-    currentList.forEach((item, idx) => {
+    let y = 0;
+    displayDeck.forEach((item) => {
         const row = this.createItemRow(item, true);
         row.x = 50;
         row.y = y;
-        row.on('pointerdown', () => this.removeItem(idx));
+        row.on('pointerdown', () => this.removeItem(item));
         this.leftListContainer.addChild(row);
         y += 40;
     });
@@ -419,12 +459,11 @@ export class EditorScene implements GameScene {
     this.leftContentHeight = y;
     const maxLeftScroll = Math.min(0, this.listHeight - this.leftContentHeight);
     if (this.leftScrollY < maxLeftScroll) this.leftScrollY = maxLeftScroll;
-    this.leftListContainer.y = 140 + this.leftScrollY;
-
+    this.leftListContainer.y = 150 + this.leftScrollY; // Shifted down a bit due to filters
 
     // Right List (Pool)
     y = 0;
-    poolList.forEach((item) => {
+    displayPool.forEach((item) => {
         const row = this.createItemRow(item, false);
         row.x = w / 2 + 50;
         row.y = y;
@@ -436,7 +475,18 @@ export class EditorScene implements GameScene {
     this.rightContentHeight = y;
     const maxRightScroll = Math.min(0, this.listHeight - this.rightContentHeight);
     if (this.rightScrollY < maxRightScroll) this.rightScrollY = maxRightScroll;
-    this.rightListContainer.y = 140 + this.rightScrollY;
+    this.rightListContainer.y = 150 + this.rightScrollY;
+  }
+  
+  removeItem(item: any) {
+    if (this.currentTab === 'Moves') {
+        const idx = this.tempDeck.findIndex(m => m.id === item.id);
+        if (idx !== -1) this.tempDeck.splice(idx, 1);
+    } else {
+        const idx = this.tempTechs.findIndex(m => m.id === item.id);
+        if (idx !== -1) this.tempTechs.splice(idx, 1);
+    }
+    this.renderLists();
   }
 
   createItemRow(item: any, isRemove: boolean) {
@@ -575,14 +625,7 @@ export class EditorScene implements GameScene {
     }
   }
 
-  removeItem(index: number) {
-    if (this.currentTab === 'Moves') {
-        this.tempDeck.splice(index, 1);
-    } else {
-        this.tempTechs.splice(index, 1);
-    }
-    this.renderLists();
-  }
+  
 
   saveAndExit() {
     if (this.tempDeck.length !== 30) {
@@ -645,6 +688,7 @@ export class EditorScene implements GameScene {
   onResize(w: number, h: number) { this.createUI(); }
   destroy() {
       window.removeEventListener('wheel', this.scrollListener);
+      this.engine.app.stage.off('pointerdown', this.stagePointerDownHandler);
       this.container.destroy({ children: true });
   }
 }
