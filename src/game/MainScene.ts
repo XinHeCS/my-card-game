@@ -227,9 +227,9 @@ export class MainScene implements GameScene {
         text: '【力量: 0  X  劲道: 0】',
         style: { fill: '#ffaa00', fontSize: 36, fontWeight: 'bold', stroke: {color: '#000000', width: 4} }
     });
-    this.powerJingdaoText.anchor.set(0.5);
+    this.powerJingdaoText.anchor.set(0.5, 0);
     this.powerJingdaoText.x = width / 2;
-    this.powerJingdaoText.y = height / 2 - 50;
+    this.powerJingdaoText.y = 60; // 放在 turnText (y=20) 的下方
     this.uiLayer.addChild(this.powerJingdaoText);
 
     // Log
@@ -796,6 +796,8 @@ export class MainScene implements GameScene {
       if (this.uiLayer && this.turnText && this.playButton) {
         // Reposition UI
         this.turnText.x = width / 2;
+        this.powerJingdaoText.x = width / 2;
+        this.powerJingdaoText.y = 60;
         this.handContainer.x = width / 2;
         this.handContainer.y = height - 200;
         this.techniqueContainer.x = 20;
