@@ -408,8 +408,8 @@ export class EditorScene implements GameScene {
     // Re-render UI to update filters text (optional, but safe)
     if (this.currentTab === 'Moves' && !this.activeDropdown) {
         this.createFilterUI(w);
-        this.container.setChildIndex(this.filterContainer, this.container.children.length - 1);
-        this.container.setChildIndex(this.infoContainer, this.container.children.length - 1);
+        this.container.addChild(this.filterContainer);
+        this.container.addChild(this.infoContainer);
     }
 
     // Update Headers
