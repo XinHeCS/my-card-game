@@ -40,7 +40,7 @@ export class GameData {
           id: 'training_dummy',
           name: '木人桩甲',
           stats: { hp: 50, maxHp: 50, attack: 5, defense: 0, jingdao: 1 },
-          spritePath: 'images/enemy.png'
+          spritePath: 'images/enemy_dummy.png'
         }
       ]
     },
@@ -53,13 +53,13 @@ export class GameData {
           id: 'rogue_monk',
           name: '赛博妖僧·阳',
           stats: { hp: 80, maxHp: 80, attack: 4, defense: 5, jingdao: 4 },
-          spritePath: 'images/enemy.png'
+          spritePath: 'images/enemy_monk.png'
         },
         {
           id: 'rogue_monk',
           name: '赛博妖僧·阴',
           stats: { hp: 80, maxHp: 80, attack: 4, defense: 5, jingdao: 4 },
-          spritePath: 'images/enemy.png'
+          spritePath: 'images/enemy_monk.png'
         }
       ]
     },
@@ -72,7 +72,7 @@ export class GameData {
           id: 'mecha_general',
           name: '机甲武圣',
           stats: { hp: 200, maxHp: 200, attack: 12, defense: 8, jingdao: 2 },
-          spritePath: 'images/enemy.png'
+          spritePath: 'images/enemy_general.png'
         }
       ]
     }
