@@ -135,7 +135,8 @@ export class MainScene implements GameScene {
     this.playerSprite.anchor.set(0.5, 1);
     this.playerSprite.x = width * 0.25;
     this.playerSprite.y = height * 0.75;
-    this.playerSprite.scale.set(4);
+    this.playerSprite.width = 300;
+    this.playerSprite.height = 300;
     this.gameLayer.addChild(this.playerSprite);
 
     const enemyCount = this.enemySprites.length;
@@ -148,14 +149,14 @@ export class MainScene implements GameScene {
         sprite.x = enemyCount === 1 ? width * 0.75 : startX + index * spacingX;
         sprite.y = height * 0.75;
         // Make enemies slightly smaller if there are many
-        sprite.scale.set(enemyCount > 1 ? 3 : 4);
+        const size = enemyCount > 1 ? 220 : 300;
+        sprite.width = size;
+        sprite.height = size;
 
         // Ensure enemy sprites are visible and added correctly
         if (sprite.texture === Texture.WHITE || sprite.texture === Texture.EMPTY || !sprite.texture) {
             sprite.texture = Texture.WHITE;
             sprite.tint = 0xFF0000;
-            sprite.width = 100 * (enemyCount > 1 ? 3 : 4);
-            sprite.height = 100 * (enemyCount > 1 ? 3 : 4);
         }
         sprite.visible = true; // explicitly force visibility
 
@@ -633,16 +634,19 @@ export class MainScene implements GameScene {
             onCardPlay: async (card: MoveCard, index: number) => {
                 // Find card container (it will be index in the hand Container)
                 // But handContainer might have changed if we cleared selection.
-                // For simplicity, just spawn text at center
-                const w = this.engine.app.renderer.width;
-                const h = this.engine.app.renderer.height;
+
+                // Dynamically get the target position of powerJingdaoText
+                const targetPos = this.powerJingdaoText.getGlobalPosition();
+                // Default to center if pos is somehow 0,0
+                const tx = targetPos.x || this.engine.app.renderer.width / 2;
+                const ty = targetPos.y || this.engine.app.renderer.height / 2 - 50;
 
                 let text = `${card.name}: `;
                 if (card.power) text += `力量+${card.power} `;
                 if (card.jingdao) text += `劲道+${card.jingdao} `;
                 if (card.def) text += `防御+${card.def} `;
 
-                this.spawnFloatingText(w / 2, h / 2, text, '#00ff00');
+                this.spawnFloatingText(tx, ty + 40, text, '#00ff00'); // Spawn slightly below the text
                 this.updatePowerJingdaoText();
                 this.updateUI(); // update HP/def
                 await this.sleep(600);
@@ -677,7 +681,11 @@ export class MainScene implements GameScene {
                     const targetX = sprite ? sprite.x : w - 250;
                     const targetY = sprite ? sprite.y - sprite.height / 2 : 40;
 
-                    await this.animateProjectile(w / 2, h / 2 - 50, targetX, targetY, 0xffaa00);
+                    const targetPos = this.powerJingdaoText.getGlobalPosition();
+                    const startX = targetPos.x || w / 2;
+                    const startY = targetPos.y || h / 2 - 50;
+
+                    await this.animateProjectile(startX, startY, targetX, targetY, 0xffaa00);
                     this.spawnFloatingText(targetX, targetY, `-${actualDamage}`, '#ff0000');
                 }
                 this.updateUI();
@@ -799,6 +807,8 @@ export class MainScene implements GameScene {
         if (this.playerSprite) {
              this.playerSprite.x = width * 0.25;
              this.playerSprite.y = height * 0.75;
+             this.playerSprite.width = 300;
+             this.playerSprite.height = 300;
         }
 
         const enemyCount = this.enemySprites.length;
@@ -812,15 +822,15 @@ export class MainScene implements GameScene {
                 sprite.y = height * 0.75;
 
                 // Keep scaling logic here for resize event
-                sprite.scale.set(enemyCount > 1 ? 3 : 4);
+                const size = enemyCount > 1 ? 220 : 300;
+                sprite.width = size;
+                sprite.height = size;
                 if (sprite.texture === Texture.WHITE || sprite.texture === Texture.EMPTY) {
-                    sprite.width = 100 * (enemyCount > 1 ? 3 : 4);
-                    sprite.height = 100 * (enemyCount > 1 ? 3 : 4);
                 }
 
                 if (this.enemyStatsTexts[index]) {
                     this.enemyStatsTexts[index].x = sprite.x;
-                    this.enemyStatsTexts[index].y = sprite.y - (sprite.height || 100 * (enemyCount > 1 ? 3 : 4)) - 10;
+                    this.enemyStatsTexts[index].y = sprite.y - size - 10;
                 }
             }
         });
