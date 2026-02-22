@@ -23,6 +23,14 @@ export class EditorScene implements GameScene {
 
   private currentTab: 'Moves' | 'Techniques' = 'Moves';
 
+  // Filters & Sorting
+  private filterWeapon: string = 'All'; // 'All', 'Fist', 'Blade', 'Spear', 'Sword', 'Staff'
+  private filterWeight: string = 'All'; // 'All', 'Light', 'Heavy', 'Charge', 'Block'
+  private sortBy: 'default' | 'power' | 'def' | 'jingdao' = 'default';
+  private sortDesc: boolean = true;
+
+  private filterContainer: Container;
+
   private scrollListener: (e: WheelEvent) => void;
 
   private leftContentHeight: number = 0;
@@ -43,6 +51,7 @@ export class EditorScene implements GameScene {
     this.leftListContainer = new Container();
     this.rightListContainer = new Container();
     this.infoContainer = new Container();
+    this.filterContainer = new Container();
 
     this.engine.app.stage.addChild(this.container);
 
@@ -172,6 +181,8 @@ export class EditorScene implements GameScene {
     this.rightLabel.y = 100;
     this.container.addChild(this.rightLabel);
 
+    this.createFilterUI(w);
+
     // Setup Lists Containers and Masks
     this.setupListContainers(w, h);
 
@@ -196,6 +207,125 @@ export class EditorScene implements GameScene {
 
       this.infoContainer.visible = false;
       this.container.addChild(this.infoContainer);
+  }
+
+  createFilterUI(w: number) {
+      this.filterContainer.removeChildren();
+      this.container.addChild(this.filterContainer);
+
+      if (this.currentTab !== 'Moves') {
+          this.filterContainer.visible = false;
+          return;
+      }
+      this.filterContainer.visible = true;
+
+      const startX = w / 2 + 120;
+      const startY = 100;
+
+      // Weapon Filter Button
+      const weaponBtn = new Container();
+      weaponBtn.x = startX;
+      weaponBtn.y = startY;
+
+      const weaponBg = new Graphics();
+      weaponBg.roundRect(0, 0, 100, 30, 5);
+      weaponBg.fill(0x444444);
+      weaponBtn.addChild(weaponBg);
+
+      const weaponText = new Text({ text: "武器: ", style: { fill: 'white', fontSize: 14 } });
+      weaponText.anchor.set(0.5);
+      weaponText.position.set(50, 15);
+      weaponBtn.addChild(weaponText);
+
+      const weapons = ['All', 'Fist', 'Blade', 'Spear', 'Sword', 'Staff'];
+      const weaponNames: Record<string, string> = { 'All': '全部', 'Fist': '拳', 'Blade': '刀', 'Spear': '枪', 'Sword': '剑', 'Staff': '棒' };
+      weaponText.text = "武器: " + weaponNames[this.filterWeapon];
+
+      weaponBtn.eventMode = 'static';
+      weaponBtn.cursor = 'pointer';
+      weaponBtn.on('pointerdown', () => {
+          const idx = weapons.indexOf(this.filterWeapon);
+          this.filterWeapon = weapons[(idx + 1) % weapons.length];
+          weaponText.text = "武器: " + weaponNames[this.filterWeapon];
+          this.rightScrollY = 0;
+          this.renderLists();
+      });
+      this.filterContainer.addChild(weaponBtn);
+
+      // Weight Filter Button
+      const weightBtn = new Container();
+      weightBtn.x = startX + 110;
+      weightBtn.y = startY;
+
+      const weightBg = new Graphics();
+      weightBg.roundRect(0, 0, 100, 30, 5);
+      weightBg.fill(0x444444);
+      weightBtn.addChild(weightBg);
+
+      const weightText = new Text({ text: "类型: ", style: { fill: 'white', fontSize: 14 } });
+      weightText.anchor.set(0.5);
+      weightText.position.set(50, 15);
+      weightBtn.addChild(weightText);
+
+      const weights = ['All', 'Light', 'Heavy', 'Charge', 'Block'];
+      const weightNames: Record<string, string> = { 'All': '全部', 'Light': '轻击', 'Heavy': '重击', 'Charge': '蓄力', 'Block': '格挡' };
+      weightText.text = "类型: " + weightNames[this.filterWeight];
+
+      weightBtn.eventMode = 'static';
+      weightBtn.cursor = 'pointer';
+      weightBtn.on('pointerdown', () => {
+          const idx = weights.indexOf(this.filterWeight);
+          this.filterWeight = weights[(idx + 1) % weights.length];
+          weightText.text = "类型: " + weightNames[this.filterWeight];
+          this.rightScrollY = 0;
+          this.renderLists();
+      });
+      this.filterContainer.addChild(weightBtn);
+
+      // Sort Button
+      const sortBtn = new Container();
+      sortBtn.x = startX + 220;
+      sortBtn.y = startY;
+
+      const sortBg = new Graphics();
+      sortBg.roundRect(0, 0, 120, 30, 5);
+      sortBg.fill(0x444444);
+      sortBtn.addChild(sortBg);
+
+      const sortText = new Text({ text: "排序: 默认", style: { fill: 'white', fontSize: 14 } });
+      sortText.anchor.set(0.5);
+      sortText.position.set(60, 15);
+      sortBtn.addChild(sortText);
+
+      const sorts: ('default' | 'power' | 'def' | 'jingdao')[] = ['default', 'power', 'def', 'jingdao'];
+      const sortNames: Record<string, string> = { 'default': '默认', 'power': '力量', 'def': '防御', 'jingdao': '劲道' };
+
+      const updateSortText = () => {
+          sortText.text = "排序: " + sortNames[this.sortBy] + (this.sortBy === 'default' ? '' : (this.sortDesc ? ' ↓' : ' ↑'));
+      };
+      updateSortText();
+
+      sortBtn.eventMode = 'static';
+      sortBtn.cursor = 'pointer';
+      sortBtn.on('pointerdown', () => {
+          if (this.sortBy === 'default') {
+              this.sortBy = 'power';
+              this.sortDesc = true;
+          } else if (this.sortBy === 'power') {
+              if (this.sortDesc) this.sortDesc = false;
+              else { this.sortBy = 'def'; this.sortDesc = true; }
+          } else if (this.sortBy === 'def') {
+              if (this.sortDesc) this.sortDesc = false;
+              else { this.sortBy = 'jingdao'; this.sortDesc = true; }
+          } else if (this.sortBy === 'jingdao') {
+              if (this.sortDesc) this.sortDesc = false;
+              else { this.sortBy = 'default'; }
+          }
+          updateSortText();
+          this.rightScrollY = 0;
+          this.renderLists();
+      });
+      this.filterContainer.addChild(sortBtn);
   }
 
   setupListContainers(w: number, h: number) {
@@ -257,7 +387,24 @@ export class EditorScene implements GameScene {
     // Render Items
     let y = 0;
     const currentList = this.currentTab === 'Moves' ? this.tempDeck : this.tempTechs;
-    const poolList = this.currentTab === 'Moves' ? GameData.getInstance().allMoves : GameData.getInstance().allTechniques;
+    let poolList = this.currentTab === 'Moves' ? GameData.getInstance().allMoves : GameData.getInstance().allTechniques;
+
+    if (this.currentTab === 'Moves') {
+        const movesList = poolList as MoveCard[];
+        poolList = movesList.filter(m => {
+            if (this.filterWeapon !== 'All' && m.weapon !== this.filterWeapon) return false;
+            if (this.filterWeight !== 'All' && m.weight !== this.filterWeight) return false;
+            return true;
+        });
+
+        if (this.sortBy !== 'default') {
+            (poolList as MoveCard[]).sort((a, b) => {
+                const valA = (a as any)[this.sortBy] || 0;
+                const valB = (b as any)[this.sortBy] || 0;
+                return this.sortDesc ? valB - valA : valA - valB;
+            });
+        }
+    }
 
     // Left List (Current)
     currentList.forEach((item, idx) => {
