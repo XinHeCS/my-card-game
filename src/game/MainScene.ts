@@ -38,6 +38,7 @@ export class MainScene implements GameScene {
 
   // Interactive
   private selectedCardIndices: Set<number> = new Set();
+  private selectedEnemyIndices: Set<number> = new Set();
   private playButton!: Container;
 
   private draggingCard: { index: number, startX: number, startY: number, pointerId: number } | null = null;
@@ -72,7 +73,7 @@ export class MainScene implements GameScene {
   async init() {
     // Load assets
     try {
-        const bgTexture = await Assets.load('images/background.png');
+        const bgTexture = await Assets.load('images/battle_bg.png');
         this.background = Sprite.from(bgTexture);
 
         const playerTexture = await Assets.load('images/player.png');
@@ -159,6 +160,13 @@ export class MainScene implements GameScene {
             sprite.tint = 0xFF0000;
         }
         sprite.visible = true; // explicitly force visibility
+
+        // Add interaction for selecting target
+        sprite.eventMode = 'static';
+        sprite.cursor = 'crosshair';
+        sprite.on('pointerdown', () => this.onEnemyClick(index));
+        sprite.on('pointerenter', () => { if (!this.selectedEnemyIndices.has(index)) sprite.alpha = 0.8; });
+        sprite.on('pointerleave', () => { if (!this.selectedEnemyIndices.has(index)) sprite.alpha = 1.0; });
 
         this.gameLayer.addChild(sprite);
     });
@@ -562,6 +570,27 @@ export class MainScene implements GameScene {
     });
   }
 
+  onEnemyClick(index: number) {
+    if (this.combatSystem.currentPhase !== 'Action') return;
+
+    const enemy = this.combatSystem.enemies[index];
+    if (!enemy || enemy.stats.hp <= 0) return; // Ignore dead enemies
+
+    this.audio.ensureResumed();
+    this.audio.play('click');
+
+    // Currently only allow selecting one target, unless we add specific cards that allow multi-select
+    // For now, toggle selection. If selecting a new one, clear others.
+    if (this.selectedEnemyIndices.has(index)) {
+        this.selectedEnemyIndices.delete(index);
+    } else {
+        this.selectedEnemyIndices.clear();
+        this.selectedEnemyIndices.add(index);
+    }
+
+    this.updateUI();
+  }
+
   onCardClick(index: number) {
     this.audio.ensureResumed();
     this.audio.play('click');
@@ -622,6 +651,14 @@ export class MainScene implements GameScene {
 
     if (this.combatSystem.currentPhase === 'Action') {
         if (this.selectedCardIndices.size > 5) return;
+
+        // Check if there are multiple alive enemies and no target is selected
+        const aliveEnemies = this.combatSystem.enemies.filter(e => e.stats.hp > 0);
+        if (aliveEnemies.length > 1 && this.selectedEnemyIndices.size === 0 && this.selectedCardIndices.size > 0) {
+            // Require player to select a target before playing cards
+            this.spawnFloatingText(this.engine.app.renderer.width / 2, this.engine.app.renderer.height / 2, '请点击选择攻击目标！', '#ff0000');
+            return;
+        }
 
         this.audio.play('move');
 
@@ -710,7 +747,8 @@ export class MainScene implements GameScene {
         this.selectedCardIndices.clear();
         this.renderHand(); // Render empty selection
 
-        await this.combatSystem.playTurn(indices, undefined, hooks);
+        const targetIndices = Array.from(this.selectedEnemyIndices);
+        await this.combatSystem.playTurn(indices, targetIndices, hooks);
 
         this.playButton.visible = true;
         this.updateUI();
@@ -766,10 +804,24 @@ export class MainScene implements GameScene {
     this.combatSystem.enemies.forEach((e, index) => {
         const text = this.enemyStatsTexts[index];
         if (text) {
-            text.text = `${e.name}\nHP: ${e.stats.hp}/${e.stats.maxHp}\n防: ${e.stats.defense} 力量: ${e.stats.attack} 劲: ${e.stats.jingdao}`;
+            const isSelected = this.selectedEnemyIndices.has(index);
+            const targetMark = isSelected ? ' ⭐' : '';
+            text.text = `${e.name}${targetMark}\nHP: ${e.stats.hp}/${e.stats.maxHp}\n防: ${e.stats.defense} 力量: ${e.stats.attack} 劲: ${e.stats.jingdao}`;
+
+            if (this.enemySprites[index]) {
+                if (isSelected) {
+                    this.enemySprites[index].tint = 0xFFDDDD; // 稍微变亮/变色表示选中
+                } else {
+                    this.enemySprites[index].tint = 0xFFFFFF; // 恢复正常
+                }
+            }
+
             if (e.stats.hp <= 0) {
                 text.alpha = 0.5;
-                if (this.enemySprites[index]) this.enemySprites[index].alpha = 0.5;
+                if (this.enemySprites[index]) {
+                    this.enemySprites[index].alpha = 0.5;
+                    this.enemySprites[index].tint = 0xFFFFFF; // 死亡恢复正常色并半透明
+                }
             }
         }
     });
