@@ -94,16 +94,23 @@ export class LevelSelectScene implements GameScene {
         if (level.description) {
             const descText = new Text({
                 text: level.description,
-                style: { fontSize: 14, align: 'center', wordWrap: true, wordWrapWidth: 220, fill: '#111111' }
+                style: {
+                    fontSize: 14,
+                    align: 'center',
+                    wordWrap: true,
+                    wordWrapWidth: 220,
+                    breakWords: true, // 必须开启 breakWords，否则中文不会自动换行
+                    fill: '#111111'
+                }
             });
             descText.anchor.set(0.5);
-            descText.y = 65;
+            descText.y = 70; // 稍微下移一点给文本留出空间
             card.addChild(descText);
         }
 
         const btnText = new Text({ text: '[ 挑战 ]', style: { fontSize: 24, fill: 'blue' } });
         btnText.anchor.set(0.5);
-        btnText.y = 120;
+        btnText.y = 125;
         card.addChild(btnText);
 
         card.x = startX + index * spacing;
