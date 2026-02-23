@@ -78,6 +78,12 @@ export class RogueMonkAI extends DefaultAI {
     }
 }
 
+export class TrainingDummyAI extends DefaultAI {
+    async takeTurn(combat: CombatSystem, enemy: EnemyState, bonusDef: number, hooks?: CombatHooks) {
+        combat.log.push(`${enemy.name}静静地立在原地...`);
+    }
+}
+
 export function getEnemyAI(enemyId?: string): EnemyAI {
     switch (enemyId) {
         case 'mecha_general':
@@ -85,6 +91,7 @@ export function getEnemyAI(enemyId?: string): EnemyAI {
         case 'rogue_monk':
             return new RogueMonkAI();
         case 'training_dummy':
+            return new TrainingDummyAI();
         default:
             return new DefaultAI();
     }
