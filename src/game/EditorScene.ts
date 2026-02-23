@@ -72,7 +72,7 @@ export class EditorScene implements GameScene {
 
     // Init Info Panel elements
     this.infoTitle = new Text({ text: '', style: { fill: '#ffff00', fontSize: 18, fontWeight: 'bold' } });
-    this.infoDesc = new Text({ text: '', style: { fill: 'white', fontSize: 14, wordWrap: true, wordWrapWidth: 230 } });
+    this.infoDesc = new Text({ text: '', style: { fill: 'white', fontSize: 14, wordWrap: true, wordWrapWidth: 230, breakWords: true } });
 
     this.stagePointerDownHandler = () => {
         if (this.activeDropdown) {
