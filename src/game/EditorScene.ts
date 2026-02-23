@@ -531,7 +531,7 @@ export class EditorScene implements GameScene {
     // Count
     if (!isRemove && this.currentTab === 'Moves') {
         const count = this.tempDeck.filter(c => c.id === item.id).length;
-        const limitText = new Text({ text: `${count}/3`, style: { fill: count >= 3 ? 'red' : 'gray', fontSize: 14 } });
+        const limitText = new Text({ text: `${count}/5`, style: { fill: count >= 5 ? 'red' : 'gray', fontSize: 14 } });
         limitText.x = 250;
         limitText.y = 10;
         row.addChild(limitText);
@@ -627,7 +627,7 @@ export class EditorScene implements GameScene {
   addItem(item: any) {
     if (this.currentTab === 'Moves') {
         const count = this.tempDeck.filter(c => c.id === item.id).length;
-        if (count >= 3) {
+        if (count >= 5) {
             return;
         }
 
