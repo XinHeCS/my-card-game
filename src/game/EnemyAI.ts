@@ -56,11 +56,34 @@ export class MechaGeneralAI extends DefaultAI {
     }
 }
 
+export class RogueMonkAI extends DefaultAI {
+    async takeTurn(combat: CombatSystem, enemy: EnemyState, bonusDef: number, hooks?: CombatHooks) {
+        // 检查是否有其他的双生妖僧存活
+        const otherMonks = combat.enemies.filter(e => e.id === 'rogue_monk' && e !== enemy && e.stats.hp > 0);
+
+        if (otherMonks.length > 0) {
+            // 查找血量低于30%的同伴
+            const lowHpMonks = otherMonks.filter(e => e.stats.hp < e.stats.maxHp * 0.3);
+            if (lowHpMonks.length > 0) {
+                for (const target of lowHpMonks) {
+                    const healAmount = Math.floor(target.stats.maxHp * 0.05);
+                    target.stats.hp = Math.min(target.stats.maxHp, target.stats.hp + healAmount);
+                    combat.log.push(`✨ ${enemy.name} 施展【双生妖法】，为 ${target.name} 恢复了 ${healAmount} 点生命！`);
+                }
+            }
+        }
+
+        // 继续执行默认的攻击行为
+        await super.takeTurn(combat, enemy, bonusDef, hooks);
+    }
+}
+
 export function getEnemyAI(enemyId?: string): EnemyAI {
     switch (enemyId) {
         case 'mecha_general':
             return new MechaGeneralAI();
         case 'rogue_monk':
+            return new RogueMonkAI();
         case 'training_dummy':
         default:
             return new DefaultAI();

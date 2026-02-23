@@ -83,11 +83,12 @@ export class CombatSystem {
     this.playerStats.defense = 0;
     this.playerStats.jingdao = 0;
 
-    // Draw cards: 7 on turn 1, 2 on subsequent turns
-    if (this.turnCount === 1) {
-        this.drawCards(7);
+    // 补齐到 7 张
+    const cardsToDraw = 7 - this.hand.length;
+    if (cardsToDraw > 0) {
+        this.drawCards(cardsToDraw);
     } else {
-        this.drawCards(2);
+        this.log.push('手牌已满7张，无需抽卡。');
     }
 
     this.currentPhase = 'Action';
