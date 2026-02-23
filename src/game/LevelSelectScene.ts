@@ -88,12 +88,22 @@ export class LevelSelectScene implements GameScene {
             style: { fontSize: 18, align: 'center' }
         });
         statText.anchor.set(0.5);
-        statText.y = 20;
+        statText.y = -5;
         card.addChild(statText);
+
+        if (level.description) {
+            const descText = new Text({
+                text: level.description,
+                style: { fontSize: 14, align: 'center', wordWrap: true, wordWrapWidth: 220, fill: '#111111' }
+            });
+            descText.anchor.set(0.5);
+            descText.y = 65;
+            card.addChild(descText);
+        }
 
         const btnText = new Text({ text: '[ 挑战 ]', style: { fontSize: 24, fill: 'blue' } });
         btnText.anchor.set(0.5);
-        btnText.y = 100;
+        btnText.y = 120;
         card.addChild(btnText);
 
         card.x = startX + index * spacing;

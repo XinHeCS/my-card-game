@@ -13,6 +13,7 @@ export interface LevelConfig {
   id: string;
   name: string;
   difficulty: string;
+  description?: string;
   enemies: EnemyConfig[];
 }
 
@@ -35,6 +36,7 @@ export class GameData {
       id: 'level_1',
       name: '木人桩',
       difficulty: '简单',
+      description: '不会攻击的木人桩，适合用来测试牌组伤害。',
       enemies: [
         {
           id: 'training_dummy',
@@ -48,6 +50,7 @@ export class GameData {
       id: 'level_2',
       name: '双生妖僧',
       difficulty: '普通',
+      description: '【双生妖法】：当场上有多个妖僧且一方血量低于30%时，另一方会在回合开始时为其恢复生命值。',
       enemies: [
         {
           id: 'rogue_monk',
@@ -67,6 +70,7 @@ export class GameData {
       id: 'level_3',
       name: '机甲武圣',
       difficulty: '困难',
+      description: '【核心过载】：当血量低于10%时会陷入狂暴，力量和劲道变为7！',
       enemies: [
         {
           id: 'mecha_general',
