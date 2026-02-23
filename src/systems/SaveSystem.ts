@@ -4,7 +4,8 @@
 export interface DeckData {
     id: string;          // 唯一ID
     name: string;        // 牌组名称（玩家自定义）
-    cards: string[];     // 卡牌ID数组，表示这套牌包含的卡片
+    moves: string[];     // 招式ID数组
+    techniques: string[];// 功法ID数组
     createdAt: number;   // 创建时间戳
     updatedAt: number;   // 修改时间戳
 }
@@ -22,7 +23,7 @@ export interface PlayerSaveData {
  * 保存系统 - 处理基于 localStorage 的本地存档逻辑
  */
 export class SaveSystem {
-    private static readonly SAVE_KEY = 'vag_player_save_v1';
+    private static readonly SAVE_KEY = 'vag_player_save_v2'; // 版本升级
     private static saveCache: PlayerSaveData | null = null;
 
     /**
@@ -52,7 +53,7 @@ export class SaveSystem {
 
         // 默认空存档
         this.saveCache = {
-            version: '1.0.0',
+            version: '2.0.0',
             decks: [],
             activeDeckId: null
         };
@@ -78,7 +79,8 @@ export class SaveSystem {
         const newDeck: DeckData = {
             id: this.generateId(),
             name: name,
-            cards: [],
+            moves: [],
+            techniques: [],
             createdAt: Date.now(),
             updatedAt: Date.now()
         };
@@ -97,15 +99,16 @@ export class SaveSystem {
     /**
      * 更新已有牌组（重命名或修改卡牌）
      * @param id 牌组ID
-     * @param updates 要更新的字段（名字或卡牌列表）
+     * @param updates 要更新的字段
      */
-    public static updateDeck(id: string, updates: Partial<Pick<DeckData, 'name' | 'cards'>>): boolean {
+    public static updateDeck(id: string, updates: Partial<Pick<DeckData, 'name' | 'moves' | 'techniques'>>): boolean {
         const save = this.load();
         const deck = save.decks.find(d => d.id === id);
 
         if (deck) {
             if (updates.name !== undefined) deck.name = updates.name;
-            if (updates.cards !== undefined) deck.cards = updates.cards;
+            if (updates.moves !== undefined) deck.moves = updates.moves;
+            if (updates.techniques !== undefined) deck.techniques = updates.techniques;
             deck.updatedAt = Date.now();
             this.save();
             return true;
@@ -124,8 +127,10 @@ export class SaveSystem {
      * 删除一个牌组
      * @param id 牌组ID
      */
-    public static deleteDeck(id: string): void {
+    public static deleteDeck(id: string): boolean {
         const save = this.load();
+        if (save.decks.length <= 1) return false; // 防止删除最后一个牌组
+
         save.decks = save.decks.filter(d => d.id !== id);
 
         // 如果删除的是当前激活的牌组，自动切换到另一个
@@ -134,6 +139,7 @@ export class SaveSystem {
         }
 
         this.save();
+        return true;
     }
 
     /**

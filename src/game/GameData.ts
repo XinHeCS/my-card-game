@@ -2,6 +2,7 @@ import { MoveCard, TechniqueCard, PlayerStats } from '../types/game';
 import { BASE_MOVES } from '../data/moves';
 import { TECHNIQUES } from '../data/techniques';
 import { GameConfig } from './GameConfig';
+import { SaveSystem } from '../systems/SaveSystem';
 
 export interface EnemyConfig {
   id: string;
@@ -18,16 +19,14 @@ export interface LevelConfig {
   enemies: EnemyConfig[];
 }
 
-const STORAGE_KEY = 'VAG_PLAYGROUND_DATA_V1';
-
 export class GameData {
   private static instance: GameData;
 
-  // Player's current build
+  // Player's current build (Memory cache)
   public currentDeck: MoveCard[] = [];
   public currentTechniques: TechniqueCard[] = [];
 
-  // Available pools (Locked/Unlocked logic can go here later)
+  // Available pools
   public allMoves: MoveCard[] = BASE_MOVES;
   public allTechniques: TechniqueCard[] = TECHNIQUES;
 
@@ -94,58 +93,65 @@ export class GameData {
     return GameData.instance;
   }
 
-  private load() {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      try {
-        const data = JSON.parse(raw);
-        if (data.deckIds && Array.isArray(data.deckIds)) {
-            this.currentDeck = data.deckIds
-                .map((id: string) => this.allMoves.find(m => m.id === id))
-                .filter((m: MoveCard | undefined): m is MoveCard => !!m);
-        }
-        if (data.techIds && Array.isArray(data.techIds)) {
-            this.currentTechniques = data.techIds
-                .map((id: string) => this.allTechniques.find(t => t.id === id))
-                .filter((t: TechniqueCard | undefined): t is TechniqueCard => !!t);
-        }
+  /**
+   * Reload currentDeck and currentTechniques from SaveSystem
+   */
+  public load() {
+    let activeDeck = SaveSystem.getActiveDeck();
 
-        // Basic validation: if load failed to produce valid deck, fallback
-        if (this.currentDeck.length === 0) {
-            console.warn('Loaded deck is empty or invalid, using default.');
-            this.createDefaultDeck();
-        }
-        return;
-      } catch (e) {
-        console.error('Failed to load game data:', e);
+    // 如果没有激活的牌组（比如第一次玩），创建一个默认牌组
+    if (!activeDeck) {
+      activeDeck = SaveSystem.createDeck('默认牌组');
+
+      const defaultMoves: string[] = [];
+      const defaultTechs: string[] = [];
+
+      // 填充默认数据
+      for (let i = 0; i < GameConfig.DECK_SIZE; i++) {
+          const randomMove = this.allMoves[Math.floor(Math.random() * this.allMoves.length)];
+          defaultMoves.push(randomMove.id);
       }
+      for (let i = 0; i < Math.min(this.allTechniques.length, GameConfig.MAX_TECHNIQUES); i++) {
+          defaultTechs.push(this.allTechniques[i].id);
+      }
+
+      SaveSystem.updateDeck(activeDeck.id, { moves: defaultMoves, techniques: defaultTechs });
+      activeDeck = SaveSystem.getActiveDeck()!;
     }
 
-    // Fallback: Default Deck
-    this.createDefaultDeck();
-  }
+    // 根据ID映射到内存中的卡牌对象
+    this.currentDeck = activeDeck.moves
+        .map(id => this.allMoves.find(m => m.id === id))
+        .filter((m): m is MoveCard => !!m);
 
-  private createDefaultDeck() {
-    this.currentDeck = [];
-    while (this.currentDeck.length < GameConfig.DECK_SIZE) {
-        const randomMove = this.allMoves[Math.floor(Math.random() * this.allMoves.length)];
-        this.currentDeck.push(randomMove);
+    this.currentTechniques = activeDeck.techniques
+        .map(id => this.allTechniques.find(t => t.id === id))
+        .filter((t): t is TechniqueCard => !!t);
+
+    // 检查是否有缺失导致不满足数量要求，修复之
+    if (this.currentDeck.length < GameConfig.DECK_SIZE) {
+        console.warn('Loaded deck is invalid or missing cards, fixing...');
+        while (this.currentDeck.length < GameConfig.DECK_SIZE) {
+            const randomMove = this.allMoves[Math.floor(Math.random() * this.allMoves.length)];
+            this.currentDeck.push(randomMove);
+        }
+        SaveSystem.updateDeck(activeDeck.id, { moves: this.currentDeck.map(c => c.id) });
     }
-    // Default Techniques
-    this.currentTechniques = this.allTechniques.slice(0, GameConfig.MAX_TECHNIQUES);
   }
 
+  /**
+   * 保存当前正在编辑的牌组
+   */
   public saveDeck(deck: MoveCard[], techniques: TechniqueCard[]) {
     this.currentDeck = [...deck];
     this.currentTechniques = [...techniques];
-    this.save();
-  }
 
-  private save() {
-      const data = {
-          deckIds: this.currentDeck.map(c => c.id),
-          techIds: this.currentTechniques.map(t => t.id)
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    const activeDeck = SaveSystem.getActiveDeck();
+    if (activeDeck) {
+      SaveSystem.updateDeck(activeDeck.id, {
+        moves: this.currentDeck.map(c => c.id),
+        techniques: this.currentTechniques.map(t => t.id)
+      });
+    }
   }
 }
