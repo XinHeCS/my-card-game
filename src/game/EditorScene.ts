@@ -176,6 +176,24 @@ export class EditorScene implements GameScene {
     cancelBtn.on('pointerdown', () => this.exitWithoutSave());
     this.container.addChild(cancelBtn);
 
+    // Clear Button
+    const clearBtn = new Container();
+    const clearBg = new Graphics();
+    clearBg.roundRect(0, 0, 100, 50, 10);
+    clearBg.fill(0xFFA500); // Orange for clear
+    clearBtn.addChild(clearBg);
+    const clearText = new Text({ text: '清空', style: { fontSize: 20, fill: 'black' } });
+    clearText.anchor.set(0.5);
+    clearText.x = 50;
+    clearText.y = 25;
+    clearBtn.addChild(clearText);
+    clearBtn.x = w - 410; // Position left of cancel button
+    clearBtn.y = 20;
+    clearBtn.eventMode = 'static';
+    clearBtn.cursor = 'pointer';
+    clearBtn.on('pointerdown', () => this.clearCurrentList());
+    this.container.addChild(clearBtn);
+
     // Info Panel
     this.setupInfoPanel(w);
 
@@ -625,7 +643,15 @@ export class EditorScene implements GameScene {
     }
   }
 
-  
+  clearCurrentList() {
+      if (this.currentTab === 'Moves') {
+          this.tempDeck = [];
+      } else {
+          this.tempTechs = [];
+      }
+      getAudioSystem().play('click');
+      this.renderLists();
+  }
 
   saveAndExit() {
     if (this.tempDeck.length !== 30) {
