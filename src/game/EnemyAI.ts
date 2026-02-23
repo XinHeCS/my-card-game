@@ -34,6 +34,16 @@ export class DefaultAI implements EnemyAI {
         }
         combat.log.push(msg);
 
+        if (combat.playerStats.thorns && combat.playerStats.thorns > 0 && actualDmg > 0) {
+            const reflectDmg = Math.floor(actualDmg * combat.playerStats.thorns);
+            if (reflectDmg > 0) {
+                enemy.stats.hp = Math.max(0, enemy.stats.hp - reflectDmg);
+                combat.log.push(`✨ 金钟罩反伤！对 ${enemy.name} 反弹了 ${reflectDmg} 点伤害。`);
+                // 效果只有一次
+                combat.playerStats.thorns = 0;
+            }
+        }
+
         if (hooks && hooks.onEnemyAttack) {
             await hooks.onEnemyAttack(enemy, enemyDmg, actualDmg);
         }

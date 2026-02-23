@@ -30,6 +30,7 @@ export interface PlayerStats {
   attack: number;
   defense: number;
   jingdao: number; // 劲道 (Internal Force/Power)
+  thorns?: number; // 反伤比例
 }
 
 export type GamePhase = 'Preparation' | 'Action' | 'Resolution' | 'Discard' | 'End' | 'GameOver';
