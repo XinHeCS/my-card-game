@@ -5,6 +5,7 @@ import { GameData } from './GameData';
 import { TitleScene } from './TitleScene';
 import { getAudioSystem } from '../audio/AudioSystem';
 import { MoveCard, TechniqueCard } from '../types/game';
+import { GameConfig } from './GameConfig';
 
 export class EditorScene implements GameScene {
   public world: World;
@@ -431,7 +432,7 @@ export class EditorScene implements GameScene {
     }
 
     // Update Headers
-    this.leftLabel.text = this.currentTab === 'Moves' ? `当前招式 (${this.tempDeck.length}/30)` : `当前功法 (${this.tempTechs.length}/5)`;
+    this.leftLabel.text = this.currentTab === 'Moves' ? `当前招式 (${this.tempDeck.length}/${GameConfig.DECK_SIZE})` : `当前功法 (${this.tempTechs.length}/${GameConfig.MAX_TECHNIQUES})`;
 
     let displayDeck = this.currentTab === 'Moves' ? [...this.tempDeck] : [...this.tempTechs];
     let displayPool = this.currentTab === 'Moves' ? [...GameData.getInstance().allMoves] : [...GameData.getInstance().allTechniques];
@@ -531,7 +532,7 @@ export class EditorScene implements GameScene {
     // Count
     if (!isRemove && this.currentTab === 'Moves') {
         const count = this.tempDeck.filter(c => c.id === item.id).length;
-        const limitText = new Text({ text: `${count}/5`, style: { fill: count >= 5 ? 'red' : 'gray', fontSize: 14 } });
+        const limitText = new Text({ text: `${count}/${GameConfig.MAX_IDENTICAL_CARDS}`, style: { fill: count >= GameConfig.MAX_IDENTICAL_CARDS ? 'red' : 'gray', fontSize: 14 } });
         limitText.x = 250;
         limitText.y = 10;
         row.addChild(limitText);
@@ -627,16 +628,16 @@ export class EditorScene implements GameScene {
   addItem(item: any) {
     if (this.currentTab === 'Moves') {
         const count = this.tempDeck.filter(c => c.id === item.id).length;
-        if (count >= 5) {
+        if (count >= GameConfig.MAX_IDENTICAL_CARDS) {
             return;
         }
 
-        if (this.tempDeck.length < 30) {
+        if (this.tempDeck.length < GameConfig.DECK_SIZE) {
             this.tempDeck.push(item);
             this.renderLists();
         }
     } else {
-        if (this.tempTechs.length < 5 && !this.tempTechs.find(t => t.id === item.id)) {
+        if (this.tempTechs.length < GameConfig.MAX_TECHNIQUES && !this.tempTechs.find(t => t.id === item.id)) {
             this.tempTechs.push(item);
             this.renderLists();
         }
@@ -654,8 +655,8 @@ export class EditorScene implements GameScene {
   }
 
   saveAndExit() {
-    if (this.tempDeck.length !== 30) {
-        this.showToast('招式牌必须正好30张！');
+    if (this.tempDeck.length !== GameConfig.DECK_SIZE) {
+        this.showToast(`招式牌必须正好${GameConfig.DECK_SIZE}张！`);
         return;
     }
     // No check for techniques count

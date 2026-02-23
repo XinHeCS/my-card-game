@@ -8,6 +8,7 @@ import { LevelSelectScene } from './LevelSelectScene';
 import { ResultScene, GameResult } from './ResultScene';
 import { MoveCard, TechniqueCard } from '../types/game';
 import { EnemyState } from './EnemyAI';
+import { GameConfig } from './GameConfig';
 
 export class MainScene implements GameScene {
   public world: World;
@@ -598,12 +599,12 @@ export class MainScene implements GameScene {
         if (this.selectedCardIndices.has(index)) {
           this.selectedCardIndices.delete(index);
         } else {
-          if (this.selectedCardIndices.size < 5) {
+          if (this.selectedCardIndices.size < GameConfig.MAX_CARDS_PER_TURN) {
             this.selectedCardIndices.add(index);
           }
         }
     } else if (this.combatSystem.currentPhase === 'Discard') {
-        const requiredCount = this.combatSystem.hand.length - 7;
+        const requiredCount = this.combatSystem.hand.length - GameConfig.MAX_HAND_SIZE;
         if (this.selectedCardIndices.has(index)) {
           this.selectedCardIndices.delete(index);
         } else {
@@ -621,11 +622,11 @@ export class MainScene implements GameScene {
     const count = this.selectedCardIndices.size;
 
     if (this.combatSystem.currentPhase === 'Action') {
-        text.text = count === 0 ? '结束回合' : `出招 (${count}/5)`;
+        text.text = count === 0 ? '结束回合' : `出招 (${count}/${GameConfig.MAX_CARDS_PER_TURN})`;
         this.playButton.alpha = 1;
         this.playButton.eventMode = 'static';
     } else if (this.combatSystem.currentPhase === 'Discard') {
-        const requiredCount = this.combatSystem.hand.length - 7;
+        const requiredCount = this.combatSystem.hand.length - GameConfig.MAX_HAND_SIZE;
         text.text = `丢弃 (${count}/${requiredCount})`;
         if (count === requiredCount) {
             this.playButton.alpha = 1;
@@ -650,7 +651,7 @@ export class MainScene implements GameScene {
     this.audio.ensureResumed();
 
     if (this.combatSystem.currentPhase === 'Action') {
-        if (this.selectedCardIndices.size > 5) return;
+        if (this.selectedCardIndices.size > GameConfig.MAX_CARDS_PER_TURN) return;
 
         // Check if there are multiple alive enemies and no target is selected
         const aliveEnemies = this.combatSystem.enemies.filter(e => e.stats.hp > 0);
@@ -754,7 +755,7 @@ export class MainScene implements GameScene {
         this.updateUI();
         this.checkPhaseTransition();
     } else if (this.combatSystem.currentPhase === 'Discard') {
-        const requiredCount = this.combatSystem.hand.length - 7;
+        const requiredCount = this.combatSystem.hand.length - GameConfig.MAX_HAND_SIZE;
         if (this.selectedCardIndices.size !== requiredCount) return;
 
         this.audio.play('move');

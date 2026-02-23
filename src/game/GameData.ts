@@ -1,6 +1,7 @@
 import { MoveCard, TechniqueCard, PlayerStats } from '../types/game';
 import { BASE_MOVES } from '../data/moves';
 import { TECHNIQUES } from '../data/techniques';
+import { GameConfig } from './GameConfig';
 
 export interface EnemyConfig {
   id: string;
@@ -126,12 +127,12 @@ export class GameData {
 
   private createDefaultDeck() {
     this.currentDeck = [];
-    while (this.currentDeck.length < 30) {
+    while (this.currentDeck.length < GameConfig.DECK_SIZE) {
         const randomMove = this.allMoves[Math.floor(Math.random() * this.allMoves.length)];
         this.currentDeck.push(randomMove);
     }
-    // Default Techniques: First 5
-    this.currentTechniques = this.allTechniques.slice(0, 5);
+    // Default Techniques
+    this.currentTechniques = this.allTechniques.slice(0, GameConfig.MAX_TECHNIQUES);
   }
 
   public saveDeck(deck: MoveCard[], techniques: TechniqueCard[]) {

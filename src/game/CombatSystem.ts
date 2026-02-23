@@ -2,6 +2,7 @@ import { MoveCard, TechniqueCard, PlayerStats, GamePhase } from '../types/game';
 import { BASE_MOVES } from '../data/moves';
 import { EnemyAI, getEnemyAI, EnemyState } from './EnemyAI';
 import { LevelConfig } from './GameData';
+import { GameConfig } from './GameConfig';
 
 export interface CombatHooks {
   onCardPlay?: (card: MoveCard, index: number) => Promise<void>;
@@ -34,7 +35,13 @@ export class CombatSystem {
     this.equippedTechniques = techniques;
 
     // Default Stats
-    this.playerStats = { hp: 100, maxHp: 100, attack: 10, defense: 5, jingdao: 1 };
+    this.playerStats = {
+      hp: GameConfig.PLAYER_BASE_HP,
+      maxHp: GameConfig.PLAYER_BASE_HP,
+      attack: GameConfig.PLAYER_BASE_ATTACK,
+      defense: GameConfig.PLAYER_BASE_DEFENSE,
+      jingdao: GameConfig.PLAYER_BASE_JINGDAO
+    };
   }
 
   loadLevel(levelConfig: LevelConfig) {
@@ -83,12 +90,12 @@ export class CombatSystem {
     this.playerStats.defense = 0;
     this.playerStats.jingdao = 0;
 
-    // 补齐到 7 张
-    const cardsToDraw = 7 - this.hand.length;
+    // 补齐手牌
+    const cardsToDraw = GameConfig.MAX_HAND_SIZE - this.hand.length;
     if (cardsToDraw > 0) {
         this.drawCards(cardsToDraw);
     } else {
-        this.log.push('手牌已满7张，无需抽卡。');
+        this.log.push(`手牌已满${GameConfig.MAX_HAND_SIZE}张，无需抽卡。`);
     }
 
     this.currentPhase = 'Action';
@@ -97,9 +104,9 @@ export class CombatSystem {
   async playTurn(selectedCardIndices: number[], targetIndices?: number[], hooks?: CombatHooks) {
     if (this.currentPhase !== 'Action') return;
 
-    // Rule: Can play 0 to 5 cards
-    if (selectedCardIndices.length > 5) {
-      this.log.push('最多只能选择 5 张牌！');
+    // Rule: Can play 0 to max cards
+    if (selectedCardIndices.length > GameConfig.MAX_CARDS_PER_TURN) {
+      this.log.push(`最多只能选择 ${GameConfig.MAX_CARDS_PER_TURN} 张牌！`);
       return;
     }
 
@@ -225,9 +232,9 @@ export class CombatSystem {
   endTurnCheck() {
     if (this.currentPhase === 'GameOver') return;
 
-    if (this.hand.length > 7) {
+    if (this.hand.length > GameConfig.MAX_HAND_SIZE) {
         this.currentPhase = 'Discard';
-        this.log.push(`手牌过多，请选择 ${this.hand.length - 7} 张牌丢弃。`);
+        this.log.push(`手牌过多，请选择 ${this.hand.length - GameConfig.MAX_HAND_SIZE} 张牌丢弃。`);
     } else {
         this.currentPhase = 'End';
         this.log.push('回合结束。');
@@ -236,7 +243,7 @@ export class CombatSystem {
 
   discardCards(selectedCardIndices: number[]) {
       if (this.currentPhase !== 'Discard') return;
-      const cardsToDiscardCount = this.hand.length - 7;
+      const cardsToDiscardCount = this.hand.length - GameConfig.MAX_HAND_SIZE;
       if (selectedCardIndices.length !== cardsToDiscardCount) {
           return;
       }
